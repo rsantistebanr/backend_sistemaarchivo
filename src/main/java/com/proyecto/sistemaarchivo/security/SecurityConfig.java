@@ -30,44 +30,81 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
+                // Desactivar CSRF porque usamos JWT
                 .csrf(csrf -> csrf.disable())
+
+                // Configuración CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // Configuración de permisos
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/login", "/api/registrar").permitAll()
+
+                        // Rutas públicas
+                        .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/registrar").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // REGLA CLAVE: Solo ADMIN. hasRole busca automáticamente "ROLE_ADMINISTRADOR"
-                        .requestMatchers("/usuarios", "/usuarios/**").hasRole("ADMINISTRADOR")
+                        // Solo ADMINISTRADOR
+                        .requestMatchers("/usuarios/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/roles/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/sucursales/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/dependencias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/tipodependencias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/estantes/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/archivadores/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/tipoarchivadores/**").hasRole("ADMINISTRADOR")
 
+                        // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+
+                // No usar sesiones (JWT es stateless)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
 
+        // Filtro JWT antes del filtro de autenticación
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
+    // Configuración CORS
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
+
         configuration.setAllowedOrigins(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "Accept"
+        ));
+
         configuration.setExposedHeaders(List.of("Authorization"));
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 
+    // Encriptador de contraseñas
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
+    // AuthenticationManager para login
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
+
 }
