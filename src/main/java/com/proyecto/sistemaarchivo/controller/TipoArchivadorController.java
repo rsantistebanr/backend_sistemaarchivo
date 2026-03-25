@@ -36,7 +36,7 @@ public class TipoArchivadorController {
     public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody TipoArchivador detalles) {
         return repository.findById(id).map(tipo -> {
             tipo.setNombre(detalles.getNombre());
-            tipo.setDescripcion(detalles.getDescripcion());
+            tipo.setEstado(detalles.getEstado());
             repository.save(tipo);
             return ResponseEntity.ok(Map.of("mensaje", "Tipo de Archivador actualizado"));
         }).orElse(ResponseEntity.notFound().build());

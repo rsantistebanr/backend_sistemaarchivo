@@ -17,6 +17,15 @@ public class EstanteController {
     @Autowired
     private EstanteRepository repository;
 
+    @GetMapping("/buscar")
+    public List<Estante> buscar(
+            @RequestParam(required = false) Integer idDep,
+            @RequestParam(required = false) Integer numEstante,
+            @RequestParam(required = false) Integer numCuerpo,
+            @RequestParam(required = false) String valda) {
+        return repository.filtrarEstantes(idDep, numEstante, numCuerpo, valda);
+    }
+
     @GetMapping
     public List<Estante> listar() {
         return repository.findAll();

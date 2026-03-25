@@ -36,4 +36,10 @@ public class Archivador {
     private Integer numero; // "va a servir en la transferencia"
 
     private Integer cantidad_folio;
+
+    @Column(name = "num_cuerpo")
+    private Integer numCuerpo;
+
+    @Column(name = "valda")
+    private String valda;
 }

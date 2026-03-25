@@ -55,6 +55,11 @@ public class SecurityConfig {
                         .requestMatchers("/estantes/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/archivadores/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/tipoarchivadores/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/documentos/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/tipodocumento/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/transferencias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/detalletransferencia/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/documentoexterno/**").hasRole("ADMINISTRADOR")
 
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
