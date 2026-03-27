@@ -14,7 +14,7 @@ public class JwtUtils {
     // Asegúrate de que esta clave sea lo suficientemente larga para HS256
     private final String jwtSecret = "clave_super_secreta_para_el_sistema_archivo_2026_Final";
 
-    private final long jwtExpirationMs = 86400000; // 24 horas
+    private final long jwtExpirationMs = 28800000; // 8 hora
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
@@ -50,6 +50,22 @@ public class JwtUtils {
         return extraerClaim(token, claims -> claims.get("rol", String.class));
     }
 
+    /*public String refrescarToken(String tokenAnterior) {
+        try {
+            // Obtenemos los claims ignorando la expiración para poder leer el rol y usuario
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClzrol);
+        } catch (ExpiredJwtException e) {
+            // Incluso si expiró, podemos sacar los datos para el refresh
+            String username = e.getClaims().getSubject();
+            String rol = e.getClaims().get("rol", String.class);
+            return generarToken(username, rol);
+        } catch (Exception e) {
+            return null; // Si la firma es falsa o el token es basura
+        }
+    }*/
     public boolean validarToken(String token) {
         try {
             Jwts.parserBuilder()

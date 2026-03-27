@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "documentoexterno") // Nombre exacto de tu DER
+@Table(name = "documentoexterno")
 @Data
 public class DocumentoExterno {
 
@@ -17,7 +17,7 @@ public class DocumentoExterno {
     private Integer IdUsuario;
 
     @Column(name = "IdArchivador")
-    private Integer IdArchivador;
+    private Integer idArchivador;
 
     // Nombre/ruta se almacenan como texto para reflejar el archivo importado.
     @Column(name = "nombreArchivo")

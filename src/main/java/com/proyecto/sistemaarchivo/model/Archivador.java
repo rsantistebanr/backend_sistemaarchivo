@@ -20,7 +20,8 @@ public class Archivador {
     @Column(name = "IdTipoArchivador")
     private Integer idTipoArchivador;
 
-    private Integer año; // Es tipo YEAR en tu diagrama
+    @Column(name = "año")
+    private String año;
 
     private Integer CantidadDoc;
 

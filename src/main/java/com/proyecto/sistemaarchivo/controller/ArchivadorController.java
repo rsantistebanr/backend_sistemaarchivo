@@ -22,7 +22,7 @@ public class ArchivadorController {
     public ResponseEntity<?> buscar(
             @RequestParam(required = false) Integer idDependencia,
             @RequestParam(required = false) Integer idTipoArchivador,
-            @RequestParam(required = false) Integer anio,
+            @RequestParam(required = false) String anio,
             @RequestParam(required = false) Integer esValioso) {
 
         List<Map<String, Object>> resultados = repository.filtrarArchivadoresPro(
@@ -49,7 +49,7 @@ public class ArchivadorController {
             arc.setIdEstante(convertToInt(payload.get("idEstante")));
             arc.setIdDependencia(convertToInt(payload.get("idDependencia")));
             arc.setIdTipoArchivador(convertToInt(payload.get("idTipoArchivador")));
-            arc.setAño(convertToInt(payload.get("año")));
+            arc.setAño(payload.get("año") != null ? String.valueOf(payload.get("año")) : null);
             arc.setNumero(convertToInt(payload.get("numero")));
             arc.setCantidad_folio(convertToInt(payload.get("cantidad_folio")));
             arc.setCantidadDoc(convertToInt(payload.get("cantidadDoc")));
@@ -91,7 +91,9 @@ public class ArchivadorController {
         arc.setIdEstante(convertToInt(p.getOrDefault("idEstante", arc.getIdEstante())));
         arc.setIdDependencia(convertToInt(p.getOrDefault("idDependencia", arc.getIdDependencia())));
         arc.setIdTipoArchivador(convertToInt(p.getOrDefault("idTipoArchivador", arc.getIdTipoArchivador())));
-        arc.setAño(convertToInt(p.getOrDefault("año", arc.getAño())));
+        if (p.containsKey("año")) {
+            arc.setAño(p.get("año") != null ? String.valueOf(p.get("año")) : null);
+        }
         arc.setNumero(convertToInt(p.getOrDefault("numero", arc.getNumero())));
         arc.setCantidad_folio(convertToInt(p.getOrDefault("cantidad_folio", arc.getCantidad_folio())));
         arc.setCantidadDoc(convertToInt(p.getOrDefault("cantidadDoc", arc.getCantidadDoc())));

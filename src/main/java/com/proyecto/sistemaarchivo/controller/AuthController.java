@@ -17,7 +17,7 @@
     
     @RestController
     @RequestMapping("/api")
-    @CrossOrigin(origins = "*") // Para evitar problemas de CORS con Angular
+    @CrossOrigin(origins = "*")
     public class AuthController {
     
         @Autowired
@@ -28,16 +28,20 @@
     
         @Autowired
         private JwtUtils jwtUtils;
+
+
     
         // Patrón Regex: Mínimo 8 caracteres, una mayúscula, una minúscula, un número y un símbolo.
         private static final String PASSWORD_PATTERN =
                 "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!¡¿?*._-])(?=\\S+$).{8,}$";
 
+
+
         @PostMapping("/login")
         public ResponseEntity<?> login(@RequestBody LoginDTO loginDTO) {
             // 1. Buscamos al usuario de forma segura (sin lanzar Exception)
+            System.out.println("Ingreso al controler");
             Optional<Usuario> usuarioOpt = usuarioRepository.findByUsuario(loginDTO.getUsuario());
-
             // Si el usuario no existe, respondemos 404 y salimos.
             // No se puede bloquear a alguien que no existe en la BD.
             if (usuarioOpt.isEmpty()) {
@@ -158,4 +162,26 @@
                 default -> "USUARIO";
             };
         }
+
+        // Dentro de AuthController.java
+
+        /*@PostMapping("/refresh")
+        public ResponseEntity<?> refresh(@RequestBody Map<String, String> payload) {
+            String tokenViejo = payload.get("token");
+
+            if (tokenViejo == null || tokenViejo.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El token es obligatorio"));
+            }
+
+            String nuevoToken = jwtUtils.refrescarToken(tokenViejo);
+
+            if (nuevoToken != null) {
+                // Opcional: Podrías buscar al usuario en la BD para ver si fue bloqueado
+                // mientras tenía el token viejo, pero para agilidad, esto es suficiente.
+                return ResponseEntity.ok(Map.of("token", nuevoToken));
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Token inválido o manipulado. Inicie sesión de nuevo."));
+            }
+        }*/
     }
