@@ -11,27 +11,17 @@ public class DocumentoExterno {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer Id;
+    private Integer id;
 
-    @Column(name = "IdUsuario")
-    private Integer IdUsuario;
+    private Integer idUsuario;
 
-    @Column(name = "IdArchivador")
-    private Integer idArchivador;
-
-    // Nombre/ruta se almacenan como texto para reflejar el archivo importado.
     @Column(name = "nombreArchivo")
     private String nombreArchivo;
 
-    @Column(name = "rutaArchivo")
     private String rutaArchivo;
-
-    @Column(name = "fechaCarga")
     private LocalDateTime fechaCarga;
 
-    @Column(name = "estado")
+    // TinyInt en DB
     private Boolean estado;
-
-    @Column(name = "formato")
     private String formato;
 }

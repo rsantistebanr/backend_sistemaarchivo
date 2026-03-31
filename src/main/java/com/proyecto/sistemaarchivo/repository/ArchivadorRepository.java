@@ -22,7 +22,21 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
 
     // Esta consulta es la que hace la "magia" de unir el Archivador con su ubicación real
     @Query(value =
-            "SELECT a.*, d.Nombre AS nombre_dependencia, ta.nombre AS nombre_tipo_archivador, " +
+            "SELECT a.id, " +
+                    "a.numero AS codigo, " +
+                    "a.numero AS numero, " +
+                    "a.año, " +
+                    "a.IdEstante AS idEstante, " +
+                    "a.IdDependencia AS idDependencia, " +
+                    "a.IdTipoArchivador AS idTipoArchivador, " +
+                    "a.es_valioso AS esValioso, " +
+                    "a.num_cuerpo AS numCuerpo, " +
+                    "a.valda AS valda, " +
+                    "a.unidad_medida AS unidadMedida, " +
+                    "a.CantidadDoc AS cantidadDoc, " + // <-- CORREGIDO: Quité la 'r' de Canrtidad
+                    "a.cantidad_folio AS cantidadFolio, " +
+                    "d.Nombre AS nombre_dependencia, " +
+                    "ta.nombre AS nombre_tipo_archivador, " +
                     "e.num_Estante AS num_estante_estante " +
                     "FROM Archivador a " +
                     "INNER JOIN Estante e ON a.IdEstante = e.id " +
@@ -31,6 +45,11 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
                     "WHERE (:idArc IS NULL OR a.id = :idArc)",
             nativeQuery = true)
     List<Map<String, Object>> obtenerDetalleCompleto(@Param("idArc") Integer idArc);
+
+    @Query(value = "SELECT d.id, d.nombre, d.fecha_registro, d.numero_folios " +
+            "FROM Documento d " +
+            "WHERE d.id_archivador = :idArc", nativeQuery = true)
+    List<Map<String, Object>> obtenerDocumentosPorArchivador(@Param("idArc") Integer idArc);
 
     //Filtro
     @Query(value =

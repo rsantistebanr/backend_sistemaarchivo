@@ -2,9 +2,10 @@ package com.proyecto.sistemaarchivo.controller;
 
 import com.proyecto.sistemaarchivo.model.Archivador;
 import com.proyecto.sistemaarchivo.repository.ArchivadorRepository;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional; // Import correcto de Spring
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,13 @@ public class ArchivadorController {
     @Autowired
     private ArchivadorRepository repository;
 
+    // 1. LISTAR TODOS
+    @GetMapping
+    public ResponseEntity<?> listar() {
+        return ResponseEntity.ok(repository.obtenerDetalleCompleto(null));
+    }
+
+    // 2. BUSCAR CON FILTROS
     @GetMapping("/buscar")
     public ResponseEntity<?> buscar(
             @RequestParam(required = false) Integer idDependencia,
@@ -26,150 +34,144 @@ public class ArchivadorController {
             @RequestParam(required = false) Integer esValioso) {
 
         List<Map<String, Object>> resultados = repository.filtrarArchivadoresPro(
-                idDependencia,
-                idTipoArchivador,
-                anio,
-                esValioso
+                idDependencia, idTipoArchivador, anio, esValioso
         );
-
         return ResponseEntity.ok(resultados);
     }
 
-    @GetMapping
-    public ResponseEntity<?> listar() {
-        return ResponseEntity.ok(repository.obtenerDetalleCompleto(null));
+    // 3. OBTENER UNO POR ID (Fundamental para que el GET /id no falle)
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id) {
+        List<Map<String, Object>> detalle = repository.obtenerDetalleCompleto(id);
+        if (detalle == null || detalle.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(detalle.get(0));
     }
 
-    // CREAR ARCHIVADOR
+    // 4. CREAR ARCHIVADOR
     @PostMapping
+    @Transactional
     public ResponseEntity<?> crear(@RequestBody Map<String, Object> payload) {
         try {
             Archivador arc = new Archivador();
-
-            arc.setIdEstante(convertToInt(payload.get("idEstante")));
-            arc.setIdDependencia(convertToInt(payload.get("idDependencia")));
-            arc.setIdTipoArchivador(convertToInt(payload.get("idTipoArchivador")));
-            arc.setAño(payload.get("año") != null ? String.valueOf(payload.get("año")) : null);
-            arc.setNumero(convertToInt(payload.get("numero")));
-            arc.setCantidad_folio(convertToInt(payload.get("cantidad_folio")));
-            arc.setCantidadDoc(convertToInt(payload.get("cantidadDoc")));
-            arc.setDocumentoInicio(convertToInt(payload.get("documentoInicio")));
-            arc.setDocumentoFin(convertToInt(payload.get("documentoFin")));
-            arc.setEs_valioso(convertToInt(payload.get("es_valioso")));
-
-            // Ubicación exacta del archivador dentro del estante
-            arc.setNumCuerpo(convertToInt(payload.get("numCuerpo")));
-            arc.setValda(convertToValda(payload.get("valda")));
-
-            if (payload.get("unidadMedida") != null) {
-                arc.setUnidadMedida(convertToDouble(payload.get("unidadMedida")));
-            }
+            actualizarCampos(arc, payload);
 
             Archivador guardado = repository.save(arc);
-            return ResponseEntity.ok(repository.obtenerDetalleCompleto(guardado.getId()));
+
+            // Retornamos el objeto completo con nombres de dependencia, etc.
+            List<Map<String, Object>> detalle = repository.obtenerDetalleCompleto(guardado.getId());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(!detalle.isEmpty() ? detalle.get(0) : guardado);
 
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al crear: " + e.getMessage()));
         }
     }
 
-    // EDITAR ARCHIVADOR
+    // 5. EDITAR ARCHIVADOR
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
         return repository.findById(id).map(arc -> {
-            actualizarCampos(arc, payload);
-            repository.save(arc);
+            try {
+                actualizarCampos(arc, payload);
+                repository.save(arc);
 
-            // Retorna el detalle para que el frontend vea el cambio de Valda/Cuerpo al instante
-            return ResponseEntity.ok(repository.obtenerDetalleCompleto(id));
+                List<Map<String, Object>> detalle = repository.obtenerDetalleCompleto(id);
+                return ResponseEntity.ok(!detalle.isEmpty() ? detalle.get(0) : arc);
+            } catch (Exception e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Error al editar: " + e.getMessage()));
+            }
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Lógica compartida para no repetir código
+    // 6. ELIMINAR ARCHIVADOR
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+        try {
+            repository.deleteById(id);
+            return ResponseEntity.ok(Map.of("mensaje", "Archivador eliminado correctamente"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "No se puede eliminar: tiene registros vinculados."));
+        }
+    }
+
+    // 7. VER DOCUMENTOS DE UN ARCHIVADOR
+    @GetMapping("/{id}/documentos")
+    public ResponseEntity<?> listarDocumentosPorArchivador(@PathVariable Integer id) {
+        try {
+            // Asumiendo que tu repository tiene un método para esto
+            // Si no lo tiene, deberás crearlo en DocumentoRepository
+            List<Map<String, Object>> documentos = repository.obtenerDocumentosPorArchivador(id);
+
+            if (documentos.isEmpty()) {
+                return ResponseEntity.ok(List.of()); // Retorna lista vacía si no hay nada
+            }
+
+            return ResponseEntity.ok(documentos);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Error al obtener documentos: " + e.getMessage()));
+        }
+    }
+
+    // --- LÓGICA DE MAPEADO (Aquí está la magia del código/número) ---
     private void actualizarCampos(Archivador arc, Map<String, Object> p) {
+        // Soporta que el front mande "codigo" o "numero"
+        if (p.containsKey("codigo")) {
+            arc.setNumero(convertToInt(p.get("codigo")));
+        } else if (p.containsKey("numero")) {
+            arc.setNumero(convertToInt(p.get("numero")));
+        }
+
         arc.setIdEstante(convertToInt(p.getOrDefault("idEstante", arc.getIdEstante())));
         arc.setIdDependencia(convertToInt(p.getOrDefault("idDependencia", arc.getIdDependencia())));
         arc.setIdTipoArchivador(convertToInt(p.getOrDefault("idTipoArchivador", arc.getIdTipoArchivador())));
-        if (p.containsKey("año")) {
-            arc.setAño(p.get("año") != null ? String.valueOf(p.get("año")) : null);
+
+        // Manejo del año (soporta "año" y "anio" por si acaso)
+        Object anioVal = p.get("año") != null ? p.get("año") : p.get("anio");
+        if (anioVal != null) {
+            arc.setAño(String.valueOf(anioVal));
         }
-        arc.setNumero(convertToInt(p.getOrDefault("numero", arc.getNumero())));
+
         arc.setCantidad_folio(convertToInt(p.getOrDefault("cantidad_folio", arc.getCantidad_folio())));
         arc.setCantidadDoc(convertToInt(p.getOrDefault("cantidadDoc", arc.getCantidadDoc())));
         arc.setDocumentoInicio(convertToInt(p.getOrDefault("documentoInicio", arc.getDocumentoInicio())));
         arc.setDocumentoFin(convertToInt(p.getOrDefault("documentoFin", arc.getDocumentoFin())));
         arc.setEs_valioso(convertToInt(p.getOrDefault("es_valioso", arc.getEs_valioso())));
-
-        // Ubicación exacta (si viene en payload)
-        if (p.containsKey("numCuerpo")) {
-            arc.setNumCuerpo(convertToInt(p.get("numCuerpo")));
-        }
-        if (p.containsKey("valda")) {
-            arc.setValda(convertToValda(p.get("valda")));
-        }
+        arc.setNumCuerpo(convertToInt(p.getOrDefault("numCuerpo", arc.getNumCuerpo())));
+        arc.setValda(convertToValda(p.getOrDefault("valda", arc.getValda())));
 
         if (p.containsKey("unidadMedida")) {
             arc.setUnidadMedida(convertToDouble(p.get("unidadMedida")));
         }
     }
 
-    // ELIMINAR ARCHIVADOR
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
-        try {
-            repository.deleteById(id);
-            return ResponseEntity.ok(Map.of("mensaje", "Archivador eliminado del sistema"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "No se puede eliminar: tiene documentos o transferencias vinculadas"));
-        }
-    }
-
-    // Helper para evitar errores de cast
+    // --- HELPERS ROBUSTOS ---
     private Integer convertToInt(Object obj) {
-        if (obj == null) return null;
-
-        if (obj instanceof Number n) {
-            return n.intValue();
-        }
-
-        if (obj instanceof String s) {
-            String t = s.trim();
-            if (t.isEmpty()) return null;
-            return Integer.parseInt(t);
-        }
-
-        throw new IllegalArgumentException("Valor no convertible a Integer: " + obj);
+        if (obj == null || obj.toString().trim().isEmpty()) return null;
+        try {
+            if (obj instanceof Number n) return n.intValue();
+            return Integer.parseInt(obj.toString().trim());
+        } catch (Exception e) { return null; }
     }
 
     private Double convertToDouble(Object obj) {
-        if (obj == null) return null;
-
-        if (obj instanceof Number n) {
-            return n.doubleValue();
-        }
-
-        if (obj instanceof String s) {
-            String t = s.trim();
-            if (t.isEmpty()) return null;
-            return Double.parseDouble(t);
-        }
-
-        throw new IllegalArgumentException("Valor no convertible a Double: " + obj);
+        if (obj == null || obj.toString().trim().isEmpty()) return null;
+        try {
+            if (obj instanceof Number n) return n.doubleValue();
+            return Double.parseDouble(obj.toString().trim());
+        } catch (Exception e) { return null; }
     }
 
     private String convertToValda(Object obj) {
         if (obj == null) return null;
-
-        String texto = String.valueOf(obj).trim().toUpperCase();
-        if (texto.isEmpty()) return null;
-
-        // Guardar solo la primera letra válida
-        char c = texto.charAt(0);
-        if (c < 'A' || c > 'Z') {
-            throw new IllegalArgumentException("Valda inválida: " + obj);
-        }
-
-        return String.valueOf(c);
+        String val = String.valueOf(obj).trim().toUpperCase();
+        return val.isEmpty() ? null : String.valueOf(val.charAt(0));
     }
 }

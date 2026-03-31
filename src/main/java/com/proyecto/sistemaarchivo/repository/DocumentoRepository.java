@@ -34,8 +34,25 @@ public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
     @Query("SELECT COALESCE(MAX(d.nroOrden), 0) FROM Documento d WHERE d.idArchivador = :idArc")
     Integer obtenerUltimoNroOrden(@Param("idArc") Integer idArc);
 
+    // Busca el ID basándose en el nombre del tipo (ej: 'INFORME')
+    @Query(value = "SELECT Id FROM TipoDocumento WHERE UPPER(nombre) = :nombre LIMIT 1", nativeQuery = true)
+    Integer buscarIdTipoPorNombre(@Param("nombre") String nombre);
 
+    // Busca el ID basándose en el nombre de la dependencia
+    @Query(value = "SELECT id FROM Dependencia WHERE UPPER(Nombre) = :nombre LIMIT 1", nativeQuery = true)
+    Integer buscarIdDependenciaPorNombre(@Param("nombre") String nombre);
 
     @Query("SELECT COALESCE(SUM(d.Numero_Folio), 0) FROM Documento d WHERE d.idArchivador = :idArc")
     Integer sumarFoliosPorArchivador(@Param("idArc") Integer idArc);
+
+    //VISUALIZAR
+
+    @Query(value = "SELECT d.*, td.nombre as nombre_tipo, dep.Nombre as nombre_dependencia " +
+            "FROM Documento d " +
+            "LEFT JOIN TipoDocumento td ON d.IdTipoDocumento = td.Id " +
+            "LEFT JOIN Dependencia dep ON d.IdDependencia = dep.id " +
+            "WHERE d.IdArchivador = :idArc " +
+            "ORDER BY d.nroOrden ASC",
+            nativeQuery = true)
+    List<Map<String, Object>> listarDocumentosPorArchivadorFull(@Param("idArc") Integer idArc);
 }
