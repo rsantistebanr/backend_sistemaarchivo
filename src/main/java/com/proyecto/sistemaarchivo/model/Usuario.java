@@ -51,4 +51,7 @@ public class Usuario {
     // Dentro de Usuario.java
     @Column(name = "intentos_fallidos")
     private Integer intentosFallidos = 0; // Inicia en 0
+
+    @Column(name = "cambio_contrasena")
+    private Integer cambioContrasena = 0;
 }

@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -12,17 +14,20 @@ import java.util.Map;
 public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
 
     @Query(value = "SELECT d.*, td.nombre as nombre_tipo, dep.Nombre as nombre_dependencia " +
-            "FROM Documento d " +
-            "LEFT JOIN TipoDocumento td ON d.IdTipoDocumento = td.Id " +
-            "LEFT JOIN Dependencia dep ON d.IdDependencia = dep.id " +
-            "WHERE (:criterio IS NULL OR d.asunto LIKE CONCAT('%', :criterio, '%') " +
-            "OR d.numeroDocumento_o_codigo_documento LIKE CONCAT('%', :criterio, '%')) " +
+            "FROM documento d " +
+            "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " + // <-- Aquí corregido 'tipodocumento'
+            "LEFT JOIN dependencia dep ON d.IdDependencia = dep.id " +
+            "WHERE (:criterio IS NULL " +
+            "   OR d.numeroDocumento_o_codigo_documento = :criterio " +
+            "   OR d.asunto LIKE CONCAT('%', :criterio, '%')) " +
+            "AND (:fecha IS NULL OR d.fechaDocumento = :fecha) " +
             "AND (:idTipo IS NULL OR d.IdTipoDocumento = :idTipo) " +
             "AND (:idDep IS NULL OR d.IdDependencia = :idDep) " +
             "AND (:estado IS NULL OR d.estado = :estado)",
             nativeQuery = true)
     List<Map<String, Object>> filtrarDocumentosFull(
             @Param("criterio") String criterio,
+            @Param("fecha") java.time.LocalDate fecha,
             @Param("idTipo") Integer idTipo,
             @Param("idDep") Integer idDep,
             @Param("estado") Integer estado);
@@ -47,10 +52,20 @@ public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
 
     //VISUALIZAR
 
-    @Query(value = "SELECT d.*, td.nombre as nombre_tipo, dep.Nombre as nombre_dependencia " +
-            "FROM Documento d " +
-            "LEFT JOIN TipoDocumento td ON d.IdTipoDocumento = td.Id " +
-            "LEFT JOIN Dependencia dep ON d.IdDependencia = dep.id " +
+    @Query(value = "SELECT " +
+            "d.Id, " +
+            "d.numeroDocumento_o_codigo_documento AS codigoDocumento, " +
+            "d.asunto, " +
+            "d.referencia, " +
+            "d.fechaDocumento, " +
+            "d.Numero_Folio, " +
+            "d.nroOrden, " +
+            "d.observacionRevision as observacion, " +
+            "td.nombre AS tipoDocumento, " +
+            "dep.Nombre AS dependencia " +
+            "FROM documento d " +
+            "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " +
+            "LEFT JOIN dependencia dep ON d.IdDependencia = dep.id " +
             "WHERE d.IdArchivador = :idArc " +
             "ORDER BY d.nroOrden ASC",
             nativeQuery = true)

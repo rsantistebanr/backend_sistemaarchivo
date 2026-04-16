@@ -29,7 +29,7 @@ public class DependenciaController {
         return repository.findAll();
     }
 
-    // FILTRO AVANZADO (Para los iconos del Front-end)
+    // FILTRO
     @GetMapping("/filtrar")
     public ResponseEntity<?> filtrar(
             @RequestParam(required = false) String nombre,
@@ -51,6 +51,7 @@ public class DependenciaController {
         return repository.findBySucursalId(idSucursal);
     }
 
+    //CREAR
     @PostMapping
     @Transactional
     public ResponseEntity<?> crear(@RequestBody Map<String, Object> payload) {
@@ -94,6 +95,7 @@ public class DependenciaController {
         }
     }
 
+    //Editar
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
@@ -153,6 +155,7 @@ public class DependenciaController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    //Eliminar
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<?> eliminar(@PathVariable Integer id) {

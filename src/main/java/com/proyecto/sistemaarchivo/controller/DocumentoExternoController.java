@@ -20,7 +20,6 @@ public class DocumentoExternoController {
     /**
      * LISTAR HISTORIAL:
      * Muestra todos los archivos Excel/Cargas masivas realizadas.
-     * Es lo que el usuario ve para saber si su carga "EMITIDOS-OTIC-2024.xlsx" ya existe.
      */
     @GetMapping("/historial")
     public ResponseEntity<List<DocumentoExterno>> obtenerHistorial() {
@@ -36,8 +35,6 @@ public class DocumentoExternoController {
 
     /**
      * VERIFICAR DUPLICADOS:
-     * El Front-end puede llamar a esto antes de subir para avisar al usuario
-     * si el nombre del archivo ya fue usado.
      */
     @GetMapping("/verificar-nombre")
     public ResponseEntity<?> verificarNombre(@RequestParam String nombreArchivo) {
@@ -47,7 +44,6 @@ public class DocumentoExternoController {
 
     /**
      * OBTENER DETALLE:
-     * Por si necesitas ver los metadatos de una carga específica.
      */
     @GetMapping("/{id}")
     public ResponseEntity<?> obtenerPorId(@PathVariable Integer id) {
@@ -58,8 +54,6 @@ public class DocumentoExternoController {
 
     /**
      * ELIMINAR REGISTRO DEL HISTORIAL:
-     * OJO: Esto solo borra el "recuerdo" de la carga masiva en el historial.
-     * No borra los documentos que se insertaron en la tabla Documento.
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarHistorial(@PathVariable Integer id) {
