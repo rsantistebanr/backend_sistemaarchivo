@@ -1,7 +1,9 @@
 package com.proyecto.sistemaarchivo.controller;
 
+import com.proyecto.sistemaarchivo.JWT.JwtUtils;
 import com.proyecto.sistemaarchivo.model.Archivador;
 import com.proyecto.sistemaarchivo.repository.ArchivadorRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,28 @@ public class ArchivadorController {
     @Autowired
     private ArchivadorRepository repository;
 
+    @Autowired
+    private JwtUtils jwtUtils;
+
     // 1. LISTAR TODOS
     @GetMapping
-    public ResponseEntity<?> listar() {
-        return ResponseEntity.ok(repository.obtenerDetalleCompleto(null));
+    public ResponseEntity<?> listar(HttpServletRequest request) {
+        List<Map<String, Object>> resultados = repository.obtenerDetalleCompleto(null);
+
+        if (esPrivilegiado(request)) {
+            return ResponseEntity.ok(resultados);
+        }
+
+        Integer idDependencia = obtenerDependenciaToken(request);
+        if (idDependencia == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
+        }
+
+        List<Map<String, Object>> filtrados = resultados.stream()
+                .filter(r -> idDependencia.equals(mapToInt(r.get("idDependencia"))))
+                .toList();
+        return ResponseEntity.ok(filtrados);
     }
 
     // 2. BUSCAR CON FILTRO
@@ -36,12 +56,27 @@ public class ArchivadorController {
             @RequestParam(required = false) Integer idDependencia,
             @RequestParam(required = false) Integer idTipoArchivador,
             @RequestParam(required = false) String anio,
-            @RequestParam(required = false) Integer esValioso) {
+            @RequestParam(required = false) Integer esValioso,
+            HttpServletRequest request) {
+
+        Integer idDependenciaFinal = idDependencia;
+        if (!esPrivilegiado(request)) {
+            Integer idDependenciaToken = obtenerDependenciaToken(request);
+            if (idDependenciaToken == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
+            }
+            if (idDependencia != null && !idDependencia.equals(idDependenciaToken)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No puedes consultar archivadores de otra dependencia"));
+            }
+            idDependenciaFinal = idDependenciaToken;
+        }
 
         String anioNormalizado = (anio != null && !anio.trim().isEmpty()) ? anio.trim() : null;
 
         List<Map<String, Object>> resultados = repository.filtrarArchivadoresPro(
-                idDependencia, idTipoArchivador, anioNormalizado, esValioso
+                idDependenciaFinal, idTipoArchivador, anioNormalizado, esValioso
         );
         return ResponseEntity.ok(resultados);
     }
@@ -75,10 +110,19 @@ public class ArchivadorController {
 
     // 3. OBTENER UNO POR ID
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id) {
+    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id, HttpServletRequest request) {
         List<Map<String, Object>> detalle = repository.obtenerDetalleCompleto(id);
         if (detalle == null || detalle.isEmpty()) {
             return ResponseEntity.notFound().build();
+        }
+
+        if (!esPrivilegiado(request)) {
+            Integer idDependenciaToken = obtenerDependenciaToken(request);
+            Integer idDependenciaRecurso = mapToInt(detalle.get(0).get("idDependencia"));
+            if (idDependenciaToken == null || !idDependenciaToken.equals(idDependenciaRecurso)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para ver este archivador"));
+            }
         }
         return ResponseEntity.ok(detalle.get(0));
     }
@@ -86,8 +130,23 @@ public class ArchivadorController {
     // 4. CREAR ARCHIVADOR
     @PostMapping
     @Transactional
-    public ResponseEntity<?> crear(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> crear(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
         try {
+            if (!esPrivilegiado(request)) {
+                Integer idDependenciaToken = obtenerDependenciaToken(request);
+                if (idDependenciaToken == null) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
+                }
+
+                Integer idDependenciaPayload = convertToInt(payload.get("idDependencia"));
+                if (idDependenciaPayload != null && !idDependenciaPayload.equals(idDependenciaToken)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No puedes crear archivadores para otra dependencia"));
+                }
+                payload.put("idDependencia", idDependenciaToken);
+            }
+
             Archivador arc = new Archivador();
             actualizarCampos(arc, payload);
 
@@ -109,9 +168,24 @@ public class ArchivadorController {
     // 5. EDITAR ARCHIVADOR
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
         return repository.findById(id).map(arc -> {
             try {
+                if (!esPrivilegiado(request)) {
+                    Integer idDependenciaToken = obtenerDependenciaToken(request);
+                    if (idDependenciaToken == null || !idDependenciaToken.equals(arc.getIdDependencia())) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(Map.of("error", "No tienes permiso para editar este archivador"));
+                    }
+
+                    Integer idDependenciaPayload = convertToInt(payload.get("idDependencia"));
+                    if (idDependenciaPayload != null && !idDependenciaPayload.equals(idDependenciaToken)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                                .body(Map.of("error", "No puedes mover el archivador a otra dependencia"));
+                    }
+                    payload.put("idDependencia", idDependenciaToken);
+                }
+
                 actualizarCampos(arc, payload);
                 repository.save(arc);
 
@@ -130,8 +204,20 @@ public class ArchivadorController {
     // 6. ELIMINAR ARCHIVADOR
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id, HttpServletRequest request) {
         try {
+            if (!esPrivilegiado(request)) {
+                Integer idDependenciaToken = obtenerDependenciaToken(request);
+                Archivador arc = repository.findById(id).orElse(null);
+                if (arc == null) {
+                    return ResponseEntity.notFound().build();
+                }
+                if (idDependenciaToken == null || !idDependenciaToken.equals(arc.getIdDependencia())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No tienes permiso para eliminar este archivador"));
+                }
+            }
+
             repository.deleteById(id);
             return ResponseEntity.ok(Map.of("mensaje", "Archivador eliminado correctamente"));
         } catch (Exception e) {
@@ -142,8 +228,20 @@ public class ArchivadorController {
 
     // 7. VER DOCUMENTO DE UN ARCHIVADOR
     @GetMapping("/{id}/documentos")
-    public ResponseEntity<?> listarDocumentosPorArchivador(@PathVariable Integer id) {
+    public ResponseEntity<?> listarDocumentosPorArchivador(@PathVariable Integer id, HttpServletRequest request) {
         try {
+            if (!esPrivilegiado(request)) {
+                Archivador arc = repository.findById(id).orElse(null);
+                Integer idDependenciaToken = obtenerDependenciaToken(request);
+                if (arc == null) {
+                    return ResponseEntity.notFound().build();
+                }
+                if (idDependenciaToken == null || !idDependenciaToken.equals(arc.getIdDependencia())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No tienes permiso para ver documentos de este archivador"));
+                }
+            }
+
             // Asumiendo que tu repository tiene un método para esto
             // Si no lo tiene, deberás crearlo en DocumentoRepository
             List<Map<String, Object>> documentos = repository.obtenerDocumentosPorArchivador(id);
@@ -170,6 +268,8 @@ public class ArchivadorController {
         arc.setIdEstante(convertToInt(p.getOrDefault("idEstante", arc.getIdEstante())));
         arc.setIdDependencia(convertToInt(p.getOrDefault("idDependencia", arc.getIdDependencia())));
         arc.setIdTipoArchivador(convertToInt(p.getOrDefault("idTipoArchivador", arc.getIdTipoArchivador())));
+        arc.setIdTipoDocumento(convertToInt(p.getOrDefault("idTipoDocumento", arc.getIdTipoDocumento())));
+        arc.setIdCaja(convertToInt(p.getOrDefault("idCaja", arc.getIdCaja())));
 
         Object anioVal = p.get("año") != null ? p.get("año") : p.get("anio");
         if (anioVal != null) {
@@ -235,5 +335,51 @@ public class ArchivadorController {
         }
 
         return (finGrupo == null) ? String.valueOf(inicio) : (inicio + "-" + fin);
+    }
+
+    private boolean esAdmin(HttpServletRequest request) {
+        String rol = obtenerRolToken(request);
+        return "ADMINISTRADOR".equalsIgnoreCase(rol);
+    }
+
+    private boolean esPrivilegiado(HttpServletRequest request) {
+        String rol = obtenerRolToken(request);
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "USUARIOA".equalsIgnoreCase(rol);
+    }
+
+    private String obtenerRolToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerRolDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer obtenerDependenciaToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerDependenciaDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extraerToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) return null;
+        return header.substring(7);
+    }
+
+    private Integer mapToInt(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number n) return n.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

@@ -31,7 +31,7 @@ public class TipoDependenciaController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 3. CREAR (Ahora simplificado: solo nombre)
+    // 3. CREAR
     @PostMapping
     public ResponseEntity<?> crear(@RequestBody TipoDependencia tipo) {
         try {
@@ -42,12 +42,11 @@ public class TipoDependenciaController {
         }
     }
 
-    // 4. EDITAR (Solo actualiza el nombre)
+    // 4. EDITAR
     @PutMapping("/{id}")
     public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody TipoDependencia detalles) {
         return repository.findById(id).map(tipo -> {
             tipo.setNombre(detalles.getNombre());
-            // Se eliminaron: codigoNumerico, tipoColor y color (ahora están en Dependencia)
             repository.save(tipo);
             return ResponseEntity.ok(Map.of("mensaje", "Tipo de Dependencia actualizado correctamente"));
         }).orElse(ResponseEntity.notFound().build());

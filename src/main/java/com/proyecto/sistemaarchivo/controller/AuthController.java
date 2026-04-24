@@ -2,7 +2,9 @@ package com.proyecto.sistemaarchivo.controller;
 
 import com.proyecto.sistemaarchivo.dto.LoginDTO;
 import com.proyecto.sistemaarchivo.dto.RegistroDTO;
+import com.proyecto.sistemaarchivo.model.Dependencia;
 import com.proyecto.sistemaarchivo.model.Usuario;
+import com.proyecto.sistemaarchivo.repository.DependenciaRepository;
 import com.proyecto.sistemaarchivo.repository.UsuarioRepository;
 import com.proyecto.sistemaarchivo.JWT.JwtUtils;
 
@@ -30,6 +32,9 @@ public class AuthController {
 
     @Autowired
     private JwtUtils jwtUtils;
+
+    @Autowired
+    private DependenciaRepository dependenciaRepository;
 
     private static final String PASSWORD_PATTERN =
             "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!¡¿?*._-])(?=\\S+$).{8,}$";
@@ -88,12 +93,15 @@ public class AuthController {
                 && usuario.getCambioContrasena() != null
                 && usuario.getCambioContrasena() == 1;
 
+        String nombreDependencia = obtenerNombreDependencia(usuario.getIdDependencia());
+
         return ResponseEntity.ok(Map.of(
                 "token", token,
                 "usuario", usuario.getUsuario(),
                 "rol", rolNombre,
                 "idUsuario", usuario.getId(),
                 "idDependencia", usuario.getIdDependencia() != null ? usuario.getIdDependencia() : 0,
+                "nombreDependencia", nombreDependencia,
                 "idSucursal", usuario.getIdSucursal() != null ? usuario.getIdSucursal() : 0,
                 "requiereCambioPassword", requiereCambioPassword
         ));
@@ -229,5 +237,15 @@ public class AuthController {
             case 3 -> "USUARIO";
             default -> "USUARIO";
         };
+    }
+
+    private String obtenerNombreDependencia(Integer idDependencia) {
+        if (idDependencia == null) {
+            return "N/A";
+        }
+        return dependenciaRepository.findById(idDependencia)
+                .map(Dependencia::getNombre)
+                .filter(nombre -> !nombre.trim().isEmpty())
+                .orElse("Sin Dependencia");
     }
 }

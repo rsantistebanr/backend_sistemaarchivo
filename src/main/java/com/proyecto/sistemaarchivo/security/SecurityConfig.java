@@ -47,20 +47,35 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/publica").permitAll()
 
-                        // Solo ADMINISTRADOR
+                        //RUTAS GET
+                        .requestMatchers(HttpMethod.GET, "/dependencias", "/dependencias/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers(HttpMethod.GET, "/sucursales", "/sucursales/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers(HttpMethod.GET, "/tipoarchivadores", "/tipoarchivadores/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers(HttpMethod.GET, "/tipodocumento" , "/tipodocumento/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        // RUTAS POST, PUT, ETC
                         .requestMatchers("/usuarios/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/roles/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/sucursales/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/sucursales/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
                         .requestMatchers("/dependencias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/tipodependencias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/estantes/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/archivadores/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/tipoarchivadores/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/documentos/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/tipodocumento/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/transferencias/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/detalletransferencia/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/documentoexterno/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/tipoarchivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
+                        .requestMatchers("/tipodocumento/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
+
+                        // Modulos operativos (Administrador + Archivo Central + Oficina)
+                        .requestMatchers("/archivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/cajas/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/documentos/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/transferencias/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/detalletransferencia/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        // Se soportan ambas rutas para compatibilidad
+                        .requestMatchers("/documento-externo/**", "/documentoexterno/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
 
                         // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()

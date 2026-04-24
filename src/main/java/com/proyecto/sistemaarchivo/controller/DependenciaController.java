@@ -1,10 +1,13 @@
 package com.proyecto.sistemaarchivo.controller;
 
+import com.proyecto.sistemaarchivo.JWT.JwtUtils;
 import com.proyecto.sistemaarchivo.model.Dependencia;
 import com.proyecto.sistemaarchivo.model.SucursalDependencia;
 import com.proyecto.sistemaarchivo.repository.DependenciaRepository;
 import com.proyecto.sistemaarchivo.repository.SucursalDependenciaRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -24,9 +27,39 @@ public class DependenciaController {
     @Autowired
     private SucursalDependenciaRepository sucursalDepRepository;
 
+    @Autowired
+    private JwtUtils jwtUtils;
+
     @GetMapping
-    public List<Dependencia> listar() {
-        return repository.findAll();
+    public ResponseEntity<?> listar(HttpServletRequest request) {
+        if (esPrivilegiado(request)) {
+            return ResponseEntity.ok(repository.findAll());
+        }
+
+        Integer idDepToken = obtenerDependenciaToken(request);
+        if (idDepToken == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
+        }
+
+        return repository.findById(idDepToken)
+                .<ResponseEntity<?>>map(dep -> ResponseEntity.ok(List.of(dep)))
+                .orElse(ResponseEntity.ok(List.of()));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            Integer idDepToken = obtenerDependenciaToken(request);
+            if (idDepToken == null || !idDepToken.equals(id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para consultar esta dependencia"));
+            }
+        }
+
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // FILTRO
@@ -173,5 +206,36 @@ public class DependenciaController {
                 return ResponseEntity.ok(Map.of("mensaje", "Desactivado. Se registró fecha de término."));
             }
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private boolean esPrivilegiado(HttpServletRequest request) {
+        String rol = obtenerRolToken(request);
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "USUARIOA".equalsIgnoreCase(rol);
+    }
+
+    private String obtenerRolToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerRolDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer obtenerDependenciaToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerDependenciaDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extraerToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) return null;
+        return header.substring(7);
     }
 }

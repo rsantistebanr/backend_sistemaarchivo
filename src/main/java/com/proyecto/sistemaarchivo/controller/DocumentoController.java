@@ -1,11 +1,16 @@
 package com.proyecto.sistemaarchivo.controller;
 
+import com.proyecto.sistemaarchivo.JWT.JwtUtils;
 import com.proyecto.sistemaarchivo.model.Documento;
 import com.proyecto.sistemaarchivo.model.DocumentoExterno;
 import com.proyecto.sistemaarchivo.model.DocumentoPreCarga;
+import com.proyecto.sistemaarchivo.model.Usuario;
+import com.proyecto.sistemaarchivo.repository.ArchivadorRepository;
 import com.proyecto.sistemaarchivo.repository.DocumentoPreCargaRepository;
 import com.proyecto.sistemaarchivo.repository.DocumentoRepository;
 import com.proyecto.sistemaarchivo.repository.DocumentoExternoRepository;
+import com.proyecto.sistemaarchivo.repository.UsuarioRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +33,9 @@ public class DocumentoController {
     @Autowired private DocumentoRepository repository;
     @Autowired private DocumentoPreCargaRepository preCargaRepo;
     @Autowired private DocumentoExternoRepository externoRepository;
+    @Autowired private ArchivadorRepository archivadorRepository;
+    @Autowired private JwtUtils jwtUtils;
+    @Autowired private UsuarioRepository usuarioRepository;
 
     private final DateTimeFormatter formatterFlexible = new DateTimeFormatterBuilder()
             .appendPattern("[dd/MM/yyyy][dd/MM/yy][yyyy-MM-dd][d/M/yy][d/M/yyyy][dd-MM-yyyy][dd-MM-yy]")
@@ -40,7 +48,22 @@ public class DocumentoController {
             @RequestParam(required = false) String fecha, // Recibe la fecha como String del Front
             @RequestParam(required = false) Integer idTipo,
             @RequestParam(required = false) Integer idDep,
-            @RequestParam(required = false) Integer estado) {
+            @RequestParam(required = false) Integer estado,
+            HttpServletRequest request) {
+
+        Integer idDepFinal = idDep;
+        if (!esPrivilegiado(request)) {
+            Integer idDepToken = obtenerDependenciaToken(request);
+            if (idDepToken == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
+            }
+            if (idDep != null && !idDep.equals(idDepToken)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No puedes consultar documentos de otra dependencia"));
+            }
+            idDepFinal = idDepToken;
+        }
 
         // Convertimos la fecha de String a LocalDate si viene algo
         LocalDate fechaParseada = (fecha != null && !fecha.isEmpty())
@@ -49,7 +72,7 @@ public class DocumentoController {
 
         // Llamamos al "filtro" que está en el Repository
         List<Map<String, Object>> resultados = repository.filtrarDocumentosFull(
-                criterio, fechaParseada, idTipo, idDep, estado
+                criterio, fechaParseada, idTipo, idDepFinal, estado
         );
 
         return ResponseEntity.ok(resultados);
@@ -57,13 +80,21 @@ public class DocumentoController {
 
     // 1. RUTA
     @GetMapping("/pendientes-revision")
-    public ResponseEntity<?> listarCargasPendientes() {
+    public ResponseEntity<?> listarCargasPendientes(HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para revisar cargas"));
+        }
         return ResponseEntity.ok(preCargaRepo.listarCargasPendientes());
     }
 
     @GetMapping("/total-folios")
-    public ResponseEntity<?> obtenerTotalFolios(@RequestParam Integer idArchivador) {
+    public ResponseEntity<?> obtenerTotalFolios(@RequestParam Integer idArchivador, HttpServletRequest request) {
         try {
+            if (!puedeAccederArchivador(idArchivador, request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para consultar este archivador"));
+            }
             Integer total = repository.sumarFoliosPorArchivador(idArchivador);
             return ResponseEntity.ok(Map.of("idArchivador", idArchivador, "totalFolios", (total != null ? total : 0)));
         } catch (Exception e) {
@@ -72,8 +103,12 @@ public class DocumentoController {
     }
 
     @GetMapping("/ultimo-nro-orden")
-    public ResponseEntity<?> obtenerUltimoNro(@RequestParam Integer idArchivador) {
+    public ResponseEntity<?> obtenerUltimoNro(@RequestParam Integer idArchivador, HttpServletRequest request) {
         try {
+            if (!puedeAccederArchivador(idArchivador, request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para consultar este archivador"));
+            }
             Integer ultimo = repository.obtenerUltimoNroOrden(idArchivador);
             int ultimoSeguro = (ultimo != null ? ultimo : 0);
             return ResponseEntity.ok(Map.of("ultimoNroOrden", ultimoSeguro, "siguienteNroOrden", (ultimoSeguro + 1)));
@@ -90,10 +125,24 @@ public class DocumentoController {
             @RequestParam(required = false) String nombreArchivo,
             @RequestParam(required = false) String referencia,
             @RequestParam(required = false) String dependencia,
-            @RequestBody List<Map<String, Object>> payload) {
+            @RequestBody List<Map<String, Object>> payload,
+            HttpServletRequest request) {
         try {
             if (idArchivador == null || idUsuario == null) {
                 return ResponseEntity.badRequest().body("Faltan IDs obligatorios (Archivador o Usuario)");
+            }
+
+            if (!puedeAccederArchivador(idArchivador, request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para cargar en este archivador"));
+            }
+
+            if (!esPrivilegiado(request)) {
+                Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+                if (idUsuarioToken == null || !idUsuarioToken.equals(idUsuario)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No puedes cargar como otro usuario"));
+                }
             }
 
             // ============================================================
@@ -148,8 +197,13 @@ public class DocumentoController {
 
     @PostMapping("/aprobar-archivo-completo/{nombreArchivo}")
     @Transactional
-    public ResponseEntity<?> aprobarTodoElArchivo(@PathVariable String nombreArchivo) {
+    public ResponseEntity<?> aprobarTodoElArchivo(@PathVariable String nombreArchivo, HttpServletRequest request) {
         try {
+            if (!esPrivilegiado(request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para aprobar cargas"));
+            }
+
             List<DocumentoPreCarga> pendientes = preCargaRepo.findByNombreArchivo(nombreArchivo);
             if (pendientes.isEmpty()) return ResponseEntity.notFound().build();
 
@@ -193,10 +247,15 @@ public class DocumentoController {
 
     @PostMapping("/procesar-revision")
     @Transactional
-    public ResponseEntity<?> procesarRevision(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<?> procesarRevision(@RequestBody Map<String, Object> requestBody, HttpServletRequest request) {
         try {
-            List<Integer> aprobadosIds = (List<Integer>) request.get("aprobados");
-            List<Map<String, Object>> rechazadosList = (List<Map<String, Object>>) request.get("rechazados");
+            if (!esPrivilegiado(request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para revisar cargas"));
+            }
+
+            List<Integer> aprobadosIds = (List<Integer>) requestBody.get("aprobados");
+            List<Map<String, Object>> rechazadosList = (List<Map<String, Object>>) requestBody.get("rechazados");
 
             if (aprobadosIds != null && !aprobadosIds.isEmpty()) {
                 List<DocumentoPreCarga> listaAprobados = preCargaRepo.findAllById(aprobadosIds);
@@ -282,19 +341,34 @@ public class DocumentoController {
     // =========================================================================
 
     @GetMapping("/archivador/{idArchivador}")
-    public ResponseEntity<?> listarPorArchivador(@PathVariable Integer idArchivador) {
+    public ResponseEntity<?> listarPorArchivador(@PathVariable Integer idArchivador, HttpServletRequest request) {
+        if (!puedeAccederArchivador(idArchivador, request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para ver este archivador"));
+        }
         return ResponseEntity.ok(repository.listarDocumentosPorArchivadorFull(idArchivador));
     }
 
     @GetMapping("/detalle-pendiente/{nombreArchivo}")
-    public ResponseEntity<?> verDetallePendiente(@PathVariable String nombreArchivo) {
+    public ResponseEntity<?> verDetallePendiente(@PathVariable String nombreArchivo, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para ver detalle de revisión"));
+        }
         List<DocumentoPreCarga> detalle = preCargaRepo.findByNombreArchivo(nombreArchivo);
         if (detalle.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "No encontrado"));
         return ResponseEntity.ok(detalle);
     }
 
     @GetMapping("/mis-observados/{idUsuario}")
-    public ResponseEntity<?> listarMisObservados(@PathVariable Integer idUsuario) {
+    public ResponseEntity<?> listarMisObservados(@PathVariable Integer idUsuario, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+            if (idUsuarioToken == null || !idUsuarioToken.equals(idUsuario)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para ver observados de otro usuario"));
+            }
+        }
         return ResponseEntity.ok(preCargaRepo.findByIdUsuarioAndEstadoRevision(idUsuario, 2));
     }
 
@@ -303,14 +377,36 @@ public class DocumentoController {
     // =========================================================================
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerUno(@PathVariable Integer id) {
-        return repository.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> obtenerUno(@PathVariable Integer id, HttpServletRequest request) {
+        return repository.findById(id).map(doc -> {
+            if (!puedeAccederDependencia(doc.getIdDependencia(), request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para ver este documento"));
+            }
+            return ResponseEntity.ok(doc);
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
     @Transactional
-    public ResponseEntity<?> crearManual(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> crearManual(@RequestBody Map<String, Object> payload, HttpServletRequest request) {
         try {
+            Integer idArchivador = convertToInt(payload.get("idArchivador"));
+            if (!puedeAccederArchivador(idArchivador, request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para registrar en este archivador"));
+            }
+
+            if (!esPrivilegiado(request)) {
+                Integer idDepToken = obtenerDependenciaToken(request);
+                Integer idDepPayload = convertToInt(payload.get("idDependencia"));
+                if (idDepPayload > 0 && !idDepPayload.equals(idDepToken)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No puedes registrar documentos para otra dependencia"));
+                }
+                payload.put("idDependencia", idDepToken);
+            }
+
             Documento doc = new Documento();
             mapearDocumento(doc, payload);
             Integer idArc = convertToInt(payload.get("idArchivador"));
@@ -326,8 +422,23 @@ public class DocumentoController {
 
     @PutMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
         return repository.findById(id).map(doc -> {
+            if (!puedeAccederDependencia(doc.getIdDependencia(), request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para editar este documento"));
+            }
+
+            if (!esPrivilegiado(request)) {
+                Integer idDepToken = obtenerDependenciaToken(request);
+                Integer idDepPayload = convertToInt(payload.get("idDependencia"));
+                if (idDepPayload > 0 && !idDepPayload.equals(idDepToken)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No puedes mover el documento a otra dependencia"));
+                }
+                payload.put("idDependencia", idDepToken);
+            }
+
             mapearDocumento(doc, payload);
             repository.save(doc);
             return ResponseEntity.ok(Map.of("mensaje", "Actualizado con éxito"));
@@ -336,8 +447,13 @@ public class DocumentoController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id, HttpServletRequest request) {
         return repository.findById(id).map(doc -> {
+            if (!puedeAccederDependencia(doc.getIdDependencia(), request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para eliminar este documento"));
+            }
+
             try {
                 repository.delete(doc);
                 return ResponseEntity.ok(Map.of("mensaje", "Eliminado físicamente"));
@@ -351,8 +467,16 @@ public class DocumentoController {
 
     @PutMapping("/corregir-y-reenviar/{id}")
     @Transactional
-    public ResponseEntity<?> corregirFila(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> corregirFila(@PathVariable Integer id, @RequestBody Map<String, Object> payload, HttpServletRequest request) {
         return preCargaRepo.findById(id).map(p -> {
+            if (!esPrivilegiado(request)) {
+                Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+                if (idUsuarioToken == null || !idUsuarioToken.equals(p.getIdUsuario())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No tienes permiso para corregir este registro"));
+                }
+            }
+
             p.setAsunto(getString(payload.get("asunto"), p.getAsunto()));
             p.setCodigoDocumento(getString(payload.get("codigoDocumento"), p.getCodigoDocumento()));
             p.setTipoDocumentoTexto(getString(payload.get("tipoDocumento"), p.getTipoDocumentoTexto()));
@@ -405,5 +529,65 @@ public class DocumentoController {
         try {
             return Integer.parseInt(obj.toString().replaceAll("[^0-9]", ""));
         } catch (Exception e) { return 0; }
+    }
+
+    private boolean esPrivilegiado(HttpServletRequest request) {
+        String rol = obtenerRolToken(request);
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "USUARIOA".equalsIgnoreCase(rol);
+    }
+
+    private boolean puedeAccederDependencia(Integer idDependencia, HttpServletRequest request) {
+        if (esPrivilegiado(request)) return true;
+        Integer idDepToken = obtenerDependenciaToken(request);
+        return idDepToken != null && idDepToken.equals(idDependencia);
+    }
+
+    private boolean puedeAccederArchivador(Integer idArchivador, HttpServletRequest request) {
+        if (idArchivador == null || idArchivador <= 0) return false;
+        if (esPrivilegiado(request)) return true;
+
+        Integer idDepToken = obtenerDependenciaToken(request);
+        if (idDepToken == null) return false;
+
+        return archivadorRepository.findById(idArchivador)
+                .map(a -> idDepToken.equals(a.getIdDependencia()))
+                .orElse(false);
+    }
+
+    private String obtenerRolToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerRolDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer obtenerDependenciaToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerDependenciaDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer obtenerIdUsuarioToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            String username = jwtUtils.obtenerUsuarioDelToken(token);
+            return usuarioRepository.findByUsuario(username).map(Usuario::getId).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extraerToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) return null;
+        return header.substring(7);
     }
 }

@@ -1,8 +1,11 @@
 package com.proyecto.sistemaarchivo.controller;
 
+import com.proyecto.sistemaarchivo.JWT.JwtUtils;
 import com.proyecto.sistemaarchivo.model.Sucursal;
 import com.proyecto.sistemaarchivo.repository.SucursalRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,14 +20,49 @@ public class SucursalController {
     @Autowired
     private SucursalRepository repository;
 
+    @Autowired
+    private JwtUtils jwtUtils;
+
     @GetMapping
-    public List<Sucursal> listar() {
-        return repository.findAll();
+    public ResponseEntity<?> listar(HttpServletRequest request) {
+        if (esPrivilegiado(request)) {
+            return ResponseEntity.ok(repository.findAll());
+        }
+
+        Integer idSucToken = obtenerSucursalToken(request);
+        if (idSucToken == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No se pudo determinar la sucursal del usuario"));
+        }
+
+        return repository.findById(idSucToken)
+                .<ResponseEntity<?>>map(s -> ResponseEntity.ok(List.of(s)))
+                .orElse(ResponseEntity.ok(List.of()));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            Integer idSucToken = obtenerSucursalToken(request);
+            if (idSucToken == null || !idSucToken.equals(id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para consultar esta sucursal"));
+            }
+        }
+
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<?> crear(@RequestBody Sucursal obj) {
+    public ResponseEntity<?> crear(@RequestBody Sucursal obj, HttpServletRequest request) {
         try {
+            if (!esPrivilegiado(request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para crear sucursales"));
+            }
+
             // Si el estado viene nulo, por defecto es true (activo)
             if (obj.getEstado() == null) obj.setEstado(true);
 
@@ -36,7 +74,12 @@ public class SucursalController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Sucursal detalles) {
+    public ResponseEntity<?> editar(@PathVariable Integer id, @RequestBody Sucursal detalles, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para editar sucursales"));
+        }
+
         return repository.findById(id).map(obj -> {
             obj.setNombre(detalles.getNombre());
             obj.setDireccion(detalles.getDireccion());
@@ -52,7 +95,12 @@ public class SucursalController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> eliminar(@PathVariable Integer id) {
+    public ResponseEntity<?> eliminar(@PathVariable Integer id, HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para eliminar sucursales"));
+        }
+
         try {
             // 1. Intento de borrado físico (Si no tiene hijos/FK, funcionará)
             repository.deleteById(id);
@@ -61,7 +109,7 @@ public class SucursalController {
         } catch (Exception e) {
             // 2. Si hay registros asociados (Usuarios o Dependencias), hacemos Borrado Lógico
             return repository.findById(id).map(obj -> {
-                obj.setEstado(false); // Cambiamos a false (0 en la BD)
+                obj.setEstado(false);
                 repository.save(obj);
                 return ResponseEntity.ok(Map.of(
                         "mensaje", "Sucursal desactivada (tenía registros asociados y no se pudo borrar)"
@@ -69,9 +117,52 @@ public class SucursalController {
             }).orElse(ResponseEntity.notFound().build());
         }
     }
-    // NUEVO: Endpoint de búsqueda para el filtro
+    //búsqueda para el filtro
     @GetMapping("/buscar")
-    public List<Sucursal> buscar(@RequestParam String criterio) {
-        return repository.buscarPorCriterio(criterio);
+    public ResponseEntity<?> buscar(@RequestParam String criterio, HttpServletRequest request) {
+        if (esPrivilegiado(request)) {
+            return ResponseEntity.ok(repository.buscarPorCriterio(criterio));
+        }
+
+        Integer idSucToken = obtenerSucursalToken(request);
+        if (idSucToken == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No se pudo determinar la sucursal del usuario"));
+        }
+
+        return repository.findById(idSucToken)
+                .<ResponseEntity<?>>map(s -> ResponseEntity.ok(List.of(s)))
+                .orElse(ResponseEntity.ok(List.of()));
+    }
+
+    private boolean esPrivilegiado(HttpServletRequest request) {
+        String rol = obtenerRolToken(request);
+        return "ADMINISTRADOR".equalsIgnoreCase(rol) || "USUARIOA".equalsIgnoreCase(rol);
+    }
+
+    private String obtenerRolToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerRolDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer obtenerSucursalToken(HttpServletRequest request) {
+        String token = extraerToken(request);
+        if (token == null) return null;
+        try {
+            return jwtUtils.obtenerSucursalDelToken(token);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String extraerToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) return null;
+        return header.substring(7);
     }
 }

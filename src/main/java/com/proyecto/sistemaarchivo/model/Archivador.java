@@ -20,6 +20,12 @@ public class Archivador {
     @Column(name = "IdTipoArchivador")
     private Integer idTipoArchivador;
 
+    @Column(name = "IdTipoDocumento")
+    private Integer idTipoDocumento;
+
+    @Column(name = "IdCaja")
+    private Integer idCaja;
+
     @Column(name = "año")
     private String año;
 
