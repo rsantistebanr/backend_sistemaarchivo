@@ -33,8 +33,6 @@ public class JwtUtils {
                 .compact();
     }
 
-    // --- EXTRACCIÓN DE DATOS ---
-
     public <T> T extraerClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())

@@ -17,10 +17,10 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
     // Buscar archivadores por dependencia (Para reportes por oficina)
     List<Archivador> findByIdDependencia(Integer idDependencia);
 
-    // Buscar por año (Útil para las transferencias de archivo que se ven en tu diagrama)
+    // Buscar por año
     List<Archivador> findByAño(String año);
 
-    // Esta consulta es la que hace la "magia" de unir el Archivador con su ubicación real
+    //consulta al Archivador con su ubicación real
     @Query(value =
             "SELECT a.id, " +
                     "a.numero AS codigo, " +
@@ -35,7 +35,7 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
                     "a.num_cuerpo AS numCuerpo, " +
                     "a.valda AS valda, " +
                     "a.unidad_medida AS unidadMedida, " +
-                    "a.CantidadDoc AS cantidadDoc, " + // <-- CORREGIDO: Quité la 'r' de Canrtidad
+                    "a.CantidadDoc AS cantidadDoc, " +
                     "a.cantidad_folio AS cantidadFolio, " +
                     "d.Nombre AS nombre_dependencia, " +
                     "ta.nombre AS nombre_tipo_archivador, " +
@@ -91,7 +91,6 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
                     "ORDER BY doc.numeroDocumento_o_codigo_documento ASC",
             nativeQuery = true)
     List<Map<String, Object>> buscarArchivadorPorTipoODocumento(@Param("terminoDocumento") String terminoDocumento);
-
     //Filtro
     // Filtro corregido para rangos de años
     @Query(value =

@@ -81,7 +81,6 @@ public class TransferenciaController {
             t.setCantidadArchivadores(archivadoresBD.size());
             t.setFechaTransferencia(LocalDateTime.now());
 
-            // AGREGADO: IdUsuarioRecepcion (Se captura del payload si ya se sabe quién recibe, sino queda null)
             t.setIdUsuarioRecepcion(convertToInt(payload.get("idUsuarioRecepcion")));
 
             Transferencia guardada = transRepo.save(t);
@@ -91,7 +90,6 @@ public class TransferenciaController {
                 DetalleTransferencia dt = new DetalleTransferencia();
                 dt.setIdTransferencia(guardada.getId());
                 dt.setIdArchivador(arc.getId());
-                // Si vienes de una carga masiva de documentos, aquí podrías asignar el IdDocumentoExterno
                 detalleRepo.save(dt);
             }
 
@@ -106,8 +104,6 @@ public class TransferenciaController {
         }
     }
 
-    // Para evitar el error de "MissingServletRequestParameter",
-    // asegúrate de que el parámetro sea opcional o venía de otra lógica
     @PutMapping("/revisar/{idDetalleEnvio}")
     @Transactional
     public ResponseEntity<?> revisarArchivador(
@@ -138,6 +134,54 @@ public class TransferenciaController {
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @GetMapping("/pendientes")
+    public ResponseEntity<?> listarPendientes(HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para ver transferencias pendientes"));
+        }
+
+        List<Transferencia> transferencias = transRepo.findAll();
+        List<Map<String, Object>> respuesta = new java.util.ArrayList<>();
+
+        for (Transferencia t : transferencias) {
+            List<DetalleTransferencia> detalles = detalleRepo.findByIdTransferencia(t.getId());
+            List<Map<String, Object>> pendientes = new java.util.ArrayList<>();
+
+            for (DetalleTransferencia d : detalles) {
+                List<HistorialRevision> historial = historialRepo.findByIdDetalleEnvio(d.getId());
+                boolean esPendiente = historial.isEmpty()
+                        || historial.get(0).getEstado() == null
+                        || historial.get(0).getEstado() == 3;
+
+                if (esPendiente) {
+                    Map<String, Object> det = new java.util.HashMap<>();
+                    det.put("idDetalleEnvio", d.getId());
+                    det.put("idArchivador", d.getIdArchivador());
+                    det.put("idDocumentoExterno", d.getIdDocumentoExterno());
+                    pendientes.add(det);
+                }
+            }
+
+            if (!pendientes.isEmpty()) {
+                Map<String, Object> item = new java.util.HashMap<>();
+                item.put("idTransferencia", t.getId());
+                item.put("idUsuarioEnvio", t.getIdUsuarioEnvio());
+                item.put("idDependenciaDestino", t.getIdDependenciaDestino());
+                item.put("observacion", t.getObservacion());
+                item.put("fechaTransferencia", t.getFechaTransferencia());
+                item.put("metrosLineales", t.getMetrosLineales());
+                item.put("cantidadArchivadores", t.getCantidadArchivadores());
+                item.put("idUsuarioRecepcion", t.getIdUsuarioRecepcion());
+                item.put("totalPendientes", pendientes.size());
+                item.put("detallesPendientes", pendientes);
+                respuesta.add(item);
+            }
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 
     private Integer convertToInt(Object obj) {

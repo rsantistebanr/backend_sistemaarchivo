@@ -56,6 +56,8 @@ public class SecurityConfig {
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
                         .requestMatchers(HttpMethod.GET, "/tipodocumento" , "/tipodocumento/*")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers(HttpMethod.GET, "/usuarios" , "/usuarios/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
 
                         // RUTAS POST, PUT, ETC
                         .requestMatchers("/usuarios/**").hasRole("ADMINISTRADOR")

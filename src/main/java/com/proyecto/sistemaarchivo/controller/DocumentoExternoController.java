@@ -27,10 +27,6 @@ public class DocumentoExternoController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    /**
-     * LISTAR HISTORIAL:
-     * Usamos ResponseEntity<?> para permitir respuestas de error o listas.
-     */
     @GetMapping("/historial")
     public ResponseEntity<?> obtenerHistorial(HttpServletRequest request) {
         try {

@@ -29,7 +29,7 @@ public class HistorialRevisionController {
         return repository.findByIdDetalleEnvio(idDetalle);
     }
 
-    // Endpoint para que el revisor de el veredicto (Conforme/Rechazado)
+    // Endpoint para el revisor (Conforme/Rechazado)
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarRevision(@PathVariable Integer id, @RequestBody Map<String, Object> payload) {
         return repository.findById(id).map(historial -> {

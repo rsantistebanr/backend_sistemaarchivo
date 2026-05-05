@@ -18,5 +18,5 @@ public class SucursalDependencia {
     @Column(name = "IdDependencia")
     private Integer idDependencia;
 
-    private Double estado = 1.0; // En tu diagrama dice DOUBLE para el estado
+    private Double estado = 1.0;
 }

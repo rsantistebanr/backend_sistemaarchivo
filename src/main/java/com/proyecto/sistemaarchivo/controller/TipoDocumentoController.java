@@ -56,11 +56,9 @@ public class TipoDocumentoController {
     public ResponseEntity<?> eliminar(@PathVariable Integer id) {
         return repository.findById(id).map(tipo -> {
             try {
-                // Borrado físico si no hay documentos usando este tipo
                 repository.delete(tipo);
                 return ResponseEntity.ok(Map.of("mensaje", "Eliminado físicamente"));
             } catch (Exception e) {
-                // Borrado lógico si ya tiene documentos asociados
                 tipo.setEstado(false);
                 repository.save(tipo);
                 return ResponseEntity.ok(Map.of("mensaje", "Desactivado (tiene documentos asociados)"));

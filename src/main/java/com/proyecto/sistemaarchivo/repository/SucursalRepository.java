@@ -11,12 +11,10 @@ import java.util.List;
 @Repository
 public interface SucursalRepository extends JpaRepository<Sucursal, Integer> {
 
-    // Búsqueda global por nombre o dirección
     @Query("SELECT s FROM Sucursal s WHERE " +
             "LOWER(s.nombre) LIKE LOWER(CONCAT('%', :criterio, '%')) OR " +
             "LOWER(s.direccion) LIKE LOWER(CONCAT('%', :criterio, '%'))")
     List<Sucursal> buscarPorCriterio(@Param("criterio") String criterio);
 
-    // Para obtener solo sucursales activas (para los select del Front-end)
     List<Sucursal> findByEstadoTrue();
 }

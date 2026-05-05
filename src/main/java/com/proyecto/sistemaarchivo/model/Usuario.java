@@ -18,7 +18,6 @@ public class Usuario {
     private String password;
     private String telefono;
 
-    // Campos de ID (para inserts/updates)
     @Column(name = "IdRol")
     private Integer idRol;
 
@@ -28,8 +27,6 @@ public class Usuario {
     @Column(name = "IdSucursal")
     private Integer idSucursal;
 
-    // OBJETOS DE RELACIÓN (para consultas/SELECTS)
-    // El 'name' debe ser el nombre físico de la columna en la BD
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "IdRol", referencedColumnName = "id", insertable = false, updatable = false)
     private Rol rolObj;
@@ -48,7 +45,6 @@ public class Usuario {
     @Column(name = "fecha_ingreso")
     private LocalDateTime fechaIngreso = LocalDateTime.now();
 
-    // Dentro de Usuario.java
     @Column(name = "intentos_fallidos")
     private Integer intentosFallidos = 0; // Inicia en 0
 

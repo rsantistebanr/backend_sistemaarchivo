@@ -21,7 +21,6 @@ public class DocumentoExterno {
     private String rutaArchivo;
     private LocalDateTime fechaCarga;
 
-    // TinyInt en DB
     private Boolean estado;
     private String formato;
 }

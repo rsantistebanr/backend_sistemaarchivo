@@ -18,7 +18,7 @@ public class Dependencia {
     private String nombre;
 
     @Column(name = "codigoNumerico", length = 15, unique = true)
-    private String codigoNumerico; // De Double a String
+    private String codigoNumerico;
 
     @Column(name = "Fecha_Creacion")
     private LocalDateTime fechaCreacion;
@@ -27,10 +27,9 @@ public class Dependencia {
     private LocalDateTime fechaTermino;
 
     private Boolean estado;
-
-    // Campos trasladados aquí
+    
     @Column(name = "Tipo_color")
-    private String tipoColor; // entero o mixto
+    private String tipoColor;
 
     private String color;
 }

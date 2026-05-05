@@ -48,7 +48,6 @@ public class UsuarioController {
             Integer rolNuevo = (nuevoUsuario.getIdRol() != null) ? nuevoUsuario.getIdRol() : 3;
             nuevoUsuario.setIdRol(rolNuevo);
 
-            // LÓGICA DE ADMINISTRADOR: Si es Rol 1, limpiar dependencia y sucursal
             if (rolNuevo == 1) {
                 nuevoUsuario.setIdDependencia(null);
                 nuevoUsuario.setIdSucursal(null);
@@ -127,7 +126,7 @@ public class UsuarioController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // 5. CAMBIAR BLOQUEO (PATCH) - CORREGIDO
+    // 5. CAMBIAR BLOQUEO
     @PatchMapping("/{id}/bloqueo")
     @Transactional
     public ResponseEntity<?> cambiarBloqueado(@PathVariable Integer id, @RequestBody Map<String, Integer> body) {

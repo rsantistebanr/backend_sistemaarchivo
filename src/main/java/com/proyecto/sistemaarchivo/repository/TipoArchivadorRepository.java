@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TipoArchivadorRepository extends JpaRepository<TipoArchivador, Integer> {
-    // Repositorio estándar para el mantenimiento de tipos
+
 }

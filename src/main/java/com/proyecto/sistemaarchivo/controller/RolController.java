@@ -47,7 +47,6 @@ public class RolController {
                 return ResponseEntity.ok(Map.of("mensaje", "Rol eliminado con éxito"));
             }).orElse(ResponseEntity.notFound().build());
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Este error ocurre si hay usuarios usando este Rol (Foreign Key Constraint)
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("error", "No se puede eliminar el rol porque hay usuarios asignados a él."));
         } catch (Exception e) {

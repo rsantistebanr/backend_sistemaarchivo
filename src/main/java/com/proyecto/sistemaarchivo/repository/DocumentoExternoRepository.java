@@ -9,10 +9,11 @@ import java.util.Optional;
 @Repository
 public interface DocumentoExternoRepository extends JpaRepository<DocumentoExterno, Integer> {
 
-    // Spring entiende esto como: SELECT * FROM documentoexterno ORDER BY fechaCarga DESC
     List<DocumentoExterno> findAllByOrderByFechaCargaDesc();
 
     List<DocumentoExterno> findByIdUsuarioOrderByFechaCargaDesc(Integer idUsuario);
+
+    Optional<DocumentoExterno> findTopByNombreArchivoOrderByFechaCargaDesc(String nombreArchivo);
 
     Optional<DocumentoExterno> findByIdAndIdUsuario(Integer id, Integer idUsuario);
 

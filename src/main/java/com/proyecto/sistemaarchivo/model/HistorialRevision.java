@@ -16,7 +16,5 @@ public class HistorialRevision {
     private Integer idDetalleEnvio; // FK hacia DetalleTransferencia
     private LocalDateTime Fecha_Revision;
     private LocalDateTime Fecha_SubSancion;
-
-    // 1: rechazado, 2: conforme, 3: pendiente (según tu DER)
     private Integer estado;
 }

@@ -14,6 +14,6 @@ public class Sucursal {
     private String nombre;
     private String direccion;
 
-    // Al usar Boolean, Spring enviará 1 o 0 a tu TINYINT(1) automáticamente
+
     private Boolean estado = true;
 }

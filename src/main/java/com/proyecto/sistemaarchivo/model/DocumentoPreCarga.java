@@ -29,6 +29,6 @@ public class DocumentoPreCarga {
     @Column(name = "observacion_rechazo")
     private String observacionRechazo;
 
-    @Column(name = "estado_revision") // Esto le dice a Java que en SQL se llama con guion
-    private Integer estadoRevision; // 0 o 2
+    @Column(name = "estado_revision")
+    private Integer estadoRevision;
 }

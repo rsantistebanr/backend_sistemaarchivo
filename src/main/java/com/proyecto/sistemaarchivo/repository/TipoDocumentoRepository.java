@@ -10,10 +10,9 @@ import java.util.List;
 @Repository
 public interface TipoDocumentoRepository extends JpaRepository<TipoDocumento, Integer> {
 
-    // Buscar por nombre (ej: buscar "Oficio")
+    // Buscar por nombre
     @Query("SELECT t FROM TipoDocumento t WHERE LOWER(t.nombre) LIKE LOWER(CONCAT('%', :nombre, '%'))")
     List<TipoDocumento> buscarPorNombre(@Param("nombre") String nombre);
 
-    // Listar solo los activos para los Select/Combos del formulario de Documentos
     List<TipoDocumento> findByEstadoTrue();
 }

@@ -15,7 +15,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
 
     @Query(value = "SELECT d.*, td.nombre as nombre_tipo, dep.Nombre as nombre_dependencia " +
             "FROM documento d " +
-            "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " + // <-- Aquí corregido 'tipodocumento'
+            "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " +
             "LEFT JOIN dependencia dep ON d.IdDependencia = dep.id " +
             "WHERE (:criterio IS NULL " +
             "   OR d.numeroDocumento_o_codigo_documento = :criterio " +

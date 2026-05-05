@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TipoDependenciaRepository extends JpaRepository<TipoDependencia, Integer> {
-    // Repositorio estándar para CRUD
+
 }

@@ -9,10 +9,8 @@ import java.util.Optional;
 @Repository
 public interface SucursalDependenciaRepository extends JpaRepository<SucursalDependencia, Integer> {
 
-    // Para el EDITAR: Busca el vínculo actual de la dependencia
     Optional<SucursalDependencia> findByIdDependencia(Integer idDependencia);
 
-    // Para el ELIMINAR: Borra el vínculo de la tabla intermedia
     @Transactional
     void deleteByIdDependencia(Integer idDependencia);
 }

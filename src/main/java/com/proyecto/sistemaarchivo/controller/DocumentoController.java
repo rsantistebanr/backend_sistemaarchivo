@@ -45,7 +45,7 @@ public class DocumentoController {
     @GetMapping("/buscar")
     public ResponseEntity<?> buscarDocumentos(
             @RequestParam(required = false) String criterio,
-            @RequestParam(required = false) String fecha, // Recibe la fecha como String del Front
+            @RequestParam(required = false) String fecha,
             @RequestParam(required = false) Integer idTipo,
             @RequestParam(required = false) Integer idDep,
             @RequestParam(required = false) Integer estado,
@@ -65,12 +65,10 @@ public class DocumentoController {
             idDepFinal = idDepToken;
         }
 
-        // Convertimos la fecha de String a LocalDate si viene algo
         LocalDate fechaParseada = (fecha != null && !fecha.isEmpty())
                 ? LocalDate.parse(fecha)
                 : null;
 
-        // Llamamos al "filtro" que está en el Repository
         List<Map<String, Object>> resultados = repository.filtrarDocumentosFull(
                 criterio, fechaParseada, idTipo, idDepFinal, estado
         );
@@ -154,9 +152,9 @@ public class DocumentoController {
             historial.setFechaCarga(java.time.LocalDateTime.now());
             historial.setEstado(true); // Activo/Cargado
             historial.setFormato("EXCEL");
-            historial.setRutaArchivo("CARGA_MASIVA"); // Opcional
+            historial.setRutaArchivo("CARGA_MASIVA");
 
-            externoRepository.save(historial); // <--- ESTO ES LO QUE FALTABA
+            externoRepository.save(historial);
 
             // ============================================================
             // 2. GUARDAR FILAS EN PRE-CARGA
@@ -352,8 +350,17 @@ public class DocumentoController {
     @GetMapping("/detalle-pendiente/{nombreArchivo}")
     public ResponseEntity<?> verDetallePendiente(@PathVariable String nombreArchivo, HttpServletRequest request) {
         if (!esPrivilegiado(request)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("error", "No tienes permiso para ver detalle de revisión"));
+            Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+            if (idUsuarioToken == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No se pudo identificar al usuario"));
+            }
+            List<DocumentoPreCarga> detalleUsuario = preCargaRepo.findByNombreArchivoAndIdUsuario(nombreArchivo, idUsuarioToken);
+            if (detalleUsuario.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para ver este detalle"));
+            }
+            return ResponseEntity.ok(detalleUsuario);
         }
         List<DocumentoPreCarga> detalle = preCargaRepo.findByNombreArchivo(nombreArchivo);
         if (detalle.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "No encontrado"));
@@ -489,20 +496,65 @@ public class DocumentoController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/mis-cargas")
+    public ResponseEntity<?> obtenerMisCargas(HttpServletRequest request) {
+        try {
+            Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+            if (idUsuarioToken == null) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No se pudo obtener la identidad del usuario"));
+            }
+
+            List<DocumentoPreCarga> cargas = preCargaRepo.obtenerMisCargas(idUsuarioToken);
+
+            // Mapear a respuesta más clara para el frontend
+            List<Map<String, Object>> resultado = cargas.stream().map(c -> {
+                DocumentoExterno cargaArchivo = externoRepository
+                        .findTopByNombreArchivoOrderByFechaCargaDesc(c.getNombreArchivo())
+                        .orElse(null);
+
+                Map<String, Object> m = new java.util.HashMap<>();
+                m.put("id", c.getId());
+                m.put("nroOrden", c.getId()); // identificador estable mientras no exista un nroOrden real en pre-carga
+                m.put("identificadorOrden", c.getId());
+                m.put("idArchivador", c.getIdArchivador());
+                m.put("idUsuario", c.getIdUsuario());
+                m.put("nombreArchivo", c.getNombreArchivo() != null ? c.getNombreArchivo() : "Sin nombre");
+                m.put("codigoDocumento", c.getCodigoDocumento() != null ? c.getCodigoDocumento() : "S/N");
+                m.put("asunto", c.getAsunto() != null ? c.getAsunto() : "Sin asunto");
+                m.put("tipoDocumento", c.getTipoDocumentoTexto() != null ? c.getTipoDocumentoTexto() : "OTROS");
+                m.put("dependenciaTexto", c.getDependenciaTexto() != null ? c.getDependenciaTexto() : "");
+                m.put("referencia", c.getReferencia() != null ? c.getReferencia() : "");
+                m.put("remision", c.getReferencia() != null ? c.getReferencia() : "");
+                m.put("folios", c.getFolios() != null ? c.getFolios() : 0);
+                m.put("estado", c.getEstadoRevision() == 0 ? "PENDIENTE" : (c.getEstadoRevision() == 2 ? "RECHAZADO" : "DESCONOCIDO"));
+                m.put("estadoNumero", c.getEstadoRevision());
+                m.put("observacionRevision", c.getObservacionRevision() != null ? c.getObservacionRevision() : "");
+                m.put("observacionRechazo", c.getObservacionRechazo() != null ? c.getObservacionRechazo() : "");
+                m.put("fechaCarga", c.getFechaTexto() != null ? c.getFechaTexto() : "");
+                m.put("fechaCargaArchivo", cargaArchivo != null && cargaArchivo.getFechaCarga() != null ? cargaArchivo.getFechaCarga() : null);
+                return m;
+            }).toList();
+
+            return ResponseEntity.ok(Map.of(
+                    "cargas", resultado,
+                    "cantidad", resultado.size()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Error al obtener cargas: " + e.getMessage()));
+        }
+    }
+
     // --- HELPERS ---
     private void mapearDocumento(Documento doc, Map<String, Object> p) {
-        // 1. Campos de texto (se actualizan solo si traen algo)
         doc.setAsunto(getString(p.get("asunto"), doc.getAsunto()));
         doc.setReferencia(getString(p.get("referencia"), doc.getReferencia()));
         doc.setNumeroDocumentoOCodigoDocumento(getString(p.get("numeroDocumentoOCodigoDocumento"), doc.getNumeroDocumentoOCodigoDocumento()));
         doc.setObservacionRevision(getString(p.get("observacionRevision"), doc.getObservacionRevision()));
-
-        // 2. IDs Críticos (Tipo y Dependencia)
         Integer nuevoIdTipo = convertToInt(p.get("idTipoDocumento"));
         Integer nuevoIdDep = convertToInt(p.get("idDependencia"));
 
-        // LÓGICA: Si el ID enviado es mayor a 0, se actualiza.
-        // Si es 0 o nulo (error del front), MANTIENE el que ya tiene el objeto 'doc'.
         if (nuevoIdTipo > 0) {
             doc.setIdTipoDocumento(nuevoIdTipo);
         }
@@ -511,7 +563,7 @@ public class DocumentoController {
             doc.setIdDependencia(nuevoIdDep);
         }
 
-        // 3. Otros campos
+
         doc.setIdArchivador(convertToInt(p.get("idArchivador")) > 0 ? convertToInt(p.get("idArchivador")) : doc.getIdArchivador());
         doc.setNumero_Folio(convertToInt(p.get("Numero_Folio")));
 
@@ -591,3 +643,4 @@ public class DocumentoController {
         return header.substring(7);
     }
 }
+

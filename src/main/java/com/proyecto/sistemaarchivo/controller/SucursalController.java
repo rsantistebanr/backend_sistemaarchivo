@@ -63,7 +63,6 @@ public class SucursalController {
                         .body(Map.of("error", "No tienes permiso para crear sucursales"));
             }
 
-            // Si el estado viene nulo, por defecto es true (activo)
             if (obj.getEstado() == null) obj.setEstado(true);
 
             repository.save(obj);
@@ -84,7 +83,6 @@ public class SucursalController {
             obj.setNombre(detalles.getNombre());
             obj.setDireccion(detalles.getDireccion());
 
-            // Validamos que el estado no sea nulo al editar para no romper la lógica
             if (detalles.getEstado() != null) {
                 obj.setEstado(detalles.getEstado());
             }
@@ -102,12 +100,10 @@ public class SucursalController {
         }
 
         try {
-            // 1. Intento de borrado físico (Si no tiene hijos/FK, funcionará)
             repository.deleteById(id);
             return ResponseEntity.ok(Map.of("mensaje", "Sucursal eliminada físicamente"));
 
         } catch (Exception e) {
-            // 2. Si hay registros asociados (Usuarios o Dependencias), hacemos Borrado Lógico
             return repository.findById(id).map(obj -> {
                 obj.setEstado(false);
                 repository.save(obj);
@@ -117,7 +113,7 @@ public class SucursalController {
             }).orElse(ResponseEntity.notFound().build());
         }
     }
-    //búsqueda para el filtro
+
     @GetMapping("/buscar")
     public ResponseEntity<?> buscar(@RequestParam String criterio, HttpServletRequest request) {
         if (esPrivilegiado(request)) {

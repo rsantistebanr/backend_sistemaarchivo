@@ -18,7 +18,7 @@ public class Estante {
 
     private Integer Num_cuerpo;
 
-    private String Valda; // En el diagrama es CHAR
+    private String Valda;
 
     private Integer cantidad;
 }

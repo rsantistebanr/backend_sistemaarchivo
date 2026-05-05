@@ -19,7 +19,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     // 2. NUEVO: Para validar si el nombre de usuario ya existe al crear uno nuevo
     boolean existsByUsuario(String usuario);
 
-    // 3. Consulta personalizada para el listado de administración
     @Query(value = "SELECT u.id, u.nombre, u.usuario, u.email, u.telefono, u.estado, u.bloqueado, u.IdRol, " +
             "r.nombre as nombre_rol, " +
             "d.nombre as nombre_dependencia, " +

@@ -10,16 +10,16 @@ import java.util.List;
 @Repository
 public interface DependenciaRepository extends JpaRepository<Dependencia, Integer> {
 
-    // 1. Verificar si el código ya existe (Tratado como String)
+    // 1. Verificar si el código ya existe
     boolean existsByCodigoNumerico(String codigoNumerico);
 
-    // 2. Listado por Sucursal (Relación Muchos a Muchos / Tabla Intermedia)
+    // 2. Listado por Sucursal
     @Query(value = "SELECT d.* FROM dependencia d " +
             "JOIN sucursal_dependencia sd ON d.id = sd.IdDependencia " +
             "WHERE sd.IdSucursal = :idSucursal", nativeQuery = true)
     List<Dependencia> findBySucursalId(@Param("idSucursal") Integer idSucursal);
 
-    // 3. Búsqueda Global (Para la barra de texto simple)
+    // 3. Búsqueda Global
     @Query(value = "SELECT * FROM dependencia d WHERE " +
             "LOWER(d.nombre) LIKE LOWER(CONCAT('%', :criterio, '%')) OR " +
             "LOWER(d.codigoNumerico) LIKE LOWER(CONCAT('%', :criterio, '%')) OR " +
@@ -27,15 +27,15 @@ public interface DependenciaRepository extends JpaRepository<Dependencia, Intege
             nativeQuery = true)
     List<Dependencia> buscarPorCriterio(@Param("criterio") String criterio);
 
-    // 4. Filtro por Estado (Para los botones de Activo/Inactivo)
+    // 4. Filtro por Estado
     List<Dependencia> findByEstado(Boolean estado);
 
-    // 5. SUPER FILTRO AVANZADO (Para los iconos: Color, Tipo, Sucursal, Estado)
+    // 5. FILTRO AVANZADO (Para los iconos: Color, Tipo, Sucursal, Estado)
     // Se usa DISTINCT para evitar duplicados si una dependencia está en varias sedes
     @Query(value = "SELECT DISTINCT d.* FROM dependencia d " +
             "LEFT JOIN sucursal_dependencia sd ON d.id = sd.IdDependencia " +
             "WHERE (:nombre IS NULL OR d.nombre LIKE %:nombre%) " +
-            "AND (:color IS NULL OR LOWER(d.color) LIKE LOWER(CONCAT('%', :color, '%'))) " + // <--- Cambio clave
+            "AND (:color IS NULL OR LOWER(d.color) LIKE LOWER(CONCAT('%', :color, '%'))) " + 
             "AND (:idTipo IS NULL OR d.idTipoDependencia = :idTipo) " +
             "AND (:idSucursal IS NULL OR sd.IdSucursal = :idSucursal) " +
             "AND (:estado IS NULL OR d.estado = :estado)",

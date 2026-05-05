@@ -64,7 +64,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                    // Sincronizamos con el prefijo ROLE_
+
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + rolToken);
 
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

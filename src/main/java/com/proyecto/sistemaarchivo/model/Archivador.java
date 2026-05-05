@@ -35,12 +35,12 @@ public class Archivador {
 
     private Integer DocumentoFin;
 
-    private Integer es_valioso; // TINYINT en diagrama
+    private Integer es_valioso;
 
-    @Column(name = "unidad_medida") // default 0.08
+    @Column(name = "unidad_medida")
     private Double unidadMedida;
 
-    private Integer numero; // "va a servir en la transferencia"
+    private Integer numero;
 
     private Integer cantidad_folio;
 

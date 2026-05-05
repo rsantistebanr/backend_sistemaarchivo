@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tranferencia") // Nombre exacto del DER
+@Table(name = "tranferencia")
 @Data
 public class Transferencia {
     @Id
