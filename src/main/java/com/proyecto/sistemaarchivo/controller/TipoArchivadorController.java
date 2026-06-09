@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/tipoarchivadores")
+@RequestMapping("/api/tipoarchivadores")
 @CrossOrigin(origins = "*")
 public class TipoArchivadorController {
 

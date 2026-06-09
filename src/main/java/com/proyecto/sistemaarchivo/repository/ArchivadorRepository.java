@@ -37,14 +37,15 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
                     "a.unidad_medida AS unidadMedida, " +
                     "a.CantidadDoc AS cantidadDoc, " +
                     "a.cantidad_folio AS cantidadFolio, " +
+                    "a.transferido AS transferido, " +
                     "d.Nombre AS nombre_dependencia, " +
                     "ta.nombre AS nombre_tipo_archivador, " +
                     "c.nro_caja AS nroCaja, " +
                     "e.num_Estante AS num_estante_estante " +
                     "FROM Archivador a " +
                     "LEFT JOIN Estante e ON a.IdEstante = e.id " +
-                    "LEFT JOIN Dependencia d ON a.IdDependencia = d.id " +
-                    "LEFT JOIN TipoArchivador ta ON a.IdTipoArchivador = ta.Id " +
+                    "LEFT JOIN dependencia d ON a.IdDependencia = d.id " +
+                    "LEFT JOIN tipoarchivador ta ON a.IdTipoArchivador = ta.Id " +
             "LEFT JOIN Caja c ON a.IdCaja = c.id " +
                     "WHERE (:idArc IS NULL OR a.id = :idArc)",
             nativeQuery = true)
@@ -71,33 +72,13 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
                     "a.unidad_medida AS unidadMedida, " +
                     "a.CantidadDoc AS cantidadDoc, " +
                     "a.cantidad_folio AS cantidadFolio, " +
+                    "a.transferido AS transferido, " +
                     "d.Nombre AS nombre_dependencia, " +
                     "ta.nombre AS nombre_tipo_archivador, " +
-                    "c.nro_caja AS nroCaja, " +
-                    "e.num_Estante AS num_estante_estante, " +
-                    "tdDoc.nombre AS tipoDocumento, " +
-                    "doc.numeroDocumento_o_codigo_documento AS codigoDocumento " +
-                    "FROM Documento doc " +
-                    "INNER JOIN Archivador a ON doc.IdArchivador = a.id " +
-                    "LEFT JOIN Estante e ON a.IdEstante = e.id " +
-                    "LEFT JOIN Dependencia d ON a.IdDependencia = d.id " +
-                    "LEFT JOIN TipoArchivador ta ON a.IdTipoArchivador = ta.Id " +
-            "LEFT JOIN Caja c ON a.IdCaja = c.id " +
-                    "LEFT JOIN TipoDocumento tdDoc ON doc.IdTipoDocumento = tdDoc.Id " +
-                    "WHERE UPPER(TRIM(doc.numeroDocumento_o_codigo_documento)) LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
-                    "OR UPPER(TRIM(tdDoc.nombre)) LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
-                    "OR UPPER(TRIM(CONCAT(COALESCE(tdDoc.nombre, ''), ' ', COALESCE(doc.numeroDocumento_o_codigo_documento, '')))) " +
-                    "LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
-                    "ORDER BY doc.numeroDocumento_o_codigo_documento ASC",
-            nativeQuery = true)
-    List<Map<String, Object>> buscarArchivadorPorTipoODocumento(@Param("terminoDocumento") String terminoDocumento);
-    //Filtro
-    // Filtro corregido para rangos de años
-    @Query(value =
-            "SELECT a.*, d.Nombre AS nombre_dependencia, ta.nombre AS nombre_tipo_archivador, c.nro_caja AS nroCaja " +
+                    "c.nro_caja AS nroCaja " +
                     "FROM Archivador a " +
-                    "LEFT JOIN Dependencia d ON a.IdDependencia = d.id " +
-                    "LEFT JOIN TipoArchivador ta ON a.IdTipoArchivador = ta.Id " +
+                    "LEFT JOIN dependencia d ON a.IdDependencia = d.id " +
+                    "LEFT JOIN tipoarchivador ta ON a.IdTipoArchivador = ta.Id " +
                     "LEFT JOIN Caja c ON a.IdCaja = c.id " +
                     "WHERE (:idDep IS NULL OR a.IdDependencia = :idDep) " +
                     "AND (:idTipoArc IS NULL OR a.IdTipoArchivador = :idTipoArc) " +
@@ -116,4 +97,43 @@ public interface ArchivadorRepository extends JpaRepository<Archivador, Integer>
             @Param("idTipoArc") Integer idTipoArc,
             @Param("anio") String anio,
             @Param("esValioso") Integer esValioso);
+
+    @Query(value =
+            "SELECT a.id, " +
+                    "a.numero AS codigo, " +
+                    "a.numero AS numero, " +
+                    "a.año, " +
+                    "a.IdEstante AS idEstante, " +
+                    "a.IdDependencia AS idDependencia, " +
+                    "a.IdTipoArchivador AS idTipoArchivador, " +
+                    "a.IdTipoDocumento AS idTipoDocumento, " +
+                    "a.IdCaja AS idCaja, " +
+                    "a.es_valioso AS esValioso, " +
+                    "a.num_cuerpo AS numCuerpo, " +
+                    "a.valda AS valda, " +
+                    "a.unidad_medida AS unidadMedida, " +
+                    "a.CantidadDoc AS cantidadDoc, " +
+                    "a.cantidad_folio AS cantidadFolio, " +
+                    "a.transferido AS transferido, " +
+                    "d.Nombre AS nombre_dependencia, " +
+                    "ta.nombre AS nombre_tipo_archivador, " +
+                    "c.nro_caja AS nroCaja, " +
+                    "e.num_Estante AS num_estante_estante, " +
+                    "tdDoc.nombre AS tipoDocumento, " +
+                    "doc.numeroDocumento_o_codigo_documento AS codigoDocumento " +
+                    "FROM Documento doc " +
+                    "INNER JOIN Archivador a ON doc.IdArchivador = a.id " +
+                    "LEFT JOIN Estante e ON a.IdEstante = e.id " +
+                    "LEFT JOIN dependencia d ON a.IdDependencia = d.id " +
+                    "LEFT JOIN tipoarchivador ta ON a.IdTipoArchivador = ta.Id " +
+                    "LEFT JOIN Caja c ON a.IdCaja = c.id " +
+                    "LEFT JOIN tipodocumento tdDoc ON doc.IdTipoDocumento = tdDoc.Id " +
+                    "WHERE UPPER(TRIM(doc.numeroDocumento_o_codigo_documento)) LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
+                    "OR UPPER(TRIM(tdDoc.nombre)) LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
+                    "OR UPPER(TRIM(CONCAT(COALESCE(tdDoc.nombre, ''), ' ', COALESCE(doc.numeroDocumento_o_codigo_documento, '')))) " +
+                    "LIKE CONCAT('%', UPPER(TRIM(:terminoDocumento)), '%') " +
+                    "ORDER BY doc.numeroDocumento_o_codigo_documento ASC",
+            nativeQuery = true)
+    List<Map<String, Object>> buscarArchivadorPorTipoODocumento(@Param("terminoDocumento") String terminoDocumento);
+
 }

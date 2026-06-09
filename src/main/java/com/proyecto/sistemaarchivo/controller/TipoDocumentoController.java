@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/tipodocumento")
+@RequestMapping("/api/tipodocumento")
 @CrossOrigin(origins = "*")
 public class TipoDocumentoController {
 

@@ -1,6 +1,7 @@
 package com.proyecto.sistemaarchivo.controller;
 
 import com.proyecto.sistemaarchivo.JWT.JwtUtils;
+import com.proyecto.sistemaarchivo.model.Archivador;
 import com.proyecto.sistemaarchivo.model.Documento;
 import com.proyecto.sistemaarchivo.model.DocumentoExterno;
 import com.proyecto.sistemaarchivo.model.DocumentoPreCarga;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/documentos")
+@RequestMapping("/api/documentos")
 @CrossOrigin(origins = "*")
 public class DocumentoController {
 
@@ -83,7 +84,44 @@ public class DocumentoController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "No tienes permiso para revisar cargas"));
         }
-        return ResponseEntity.ok(preCargaRepo.listarCargasPendientes());
+        List<Object[]> filas = preCargaRepo.listarCargasPendientes();
+        List<Map<String, Object>> respuesta = new ArrayList<>();
+        for (Object[] row : filas) {
+            String nombreArchivo = row[0] != null ? row[0].toString() : "";
+            Integer total = row[1] != null ? ((Number) row[1]).intValue() : 0;
+            String referencia = row[2] != null ? row[2].toString() : "";
+            String fechaCarga = row[3] != null ? row[3].toString() : "";
+            String dependencia = row[4] != null ? row[4].toString() : "";
+            String codigo = row[5] != null ? row[5].toString() : "";
+            String tipo = row[6] != null ? row[6].toString() : "";
+            String observacion = row[7] != null ? row[7].toString() : "";
+            Integer idArchivador = row[8] != null ? ((Number) row[8]).intValue() : null;
+
+            String archivadorCodigo = "";
+            String archivadorAnio = "";
+            if (idArchivador != null) {
+                Archivador arc = archivadorRepository.findById(idArchivador).orElse(null);
+                if (arc != null) {
+                    archivadorCodigo = arc.getNumero() != null ? arc.getNumero().toString() : "";
+                    archivadorAnio = arc.getAnio() != null ? arc.getAnio() : "";
+                }
+            }
+
+            Map<String, Object> item = new java.util.HashMap<>();
+            item.put("nombreArchivo", nombreArchivo);
+            item.put("totalDocumentos", total);
+            item.put("referencia", referencia);
+            item.put("fechaCarga", fechaCarga);
+            item.put("dependencia", dependencia);
+            item.put("codigo", codigo);
+            item.put("tipo", tipo);
+            item.put("observacion", observacion);
+            item.put("idArchivador", idArchivador);
+            item.put("archivadorCodigo", archivadorCodigo);
+            item.put("archivadorAnio", archivadorAnio);
+            respuesta.add(item);
+        }
+        return ResponseEntity.ok(respuesta);
     }
 
     @GetMapping("/total-folios")
@@ -164,22 +202,23 @@ public class DocumentoController {
                 DocumentoPreCarga tp = new DocumentoPreCarga();
                 tp.setIdArchivador(idArchivador);
                 tp.setIdUsuario(idUsuario);
-                tp.setAsunto(getString(fila.get("asunto"), "Sin Asunto"));
-                tp.setCodigoDocumento(getString(fila.get("codigoDocumento"), "S/N"));
-                tp.setTipoDocumentoTexto(getString(fila.get("tipoDocumento"), "OTROS"));
-                tp.setDependenciaTexto(getString(dependencia, "OFICINA DESCONOCIDA"));
-                tp.setFechaTexto(getString(fila.get("fecha"), ""));
+                tp.setAsunto(truncate(getString(fila.get("asunto"), "Sin Asunto"), 255));
+                tp.setCodigoDocumento(truncate(getString(fila.get("codigoDocumento"), "S/N"), 255));
+                tp.setTipoDocumentoTexto(truncate(getString(fila.get("tipoDocumento"), "OTROS"), 255));
+                tp.setDependenciaTexto(truncate(getString(dependencia, "OFICINA DESCONOCIDA"), 255));
+                tp.setFechaTexto(truncate(getString(fila.get("fecha"), ""), 255));
                 tp.setFolios(convertToInt(fila.get("folios")));
-                tp.setObservacionRevision(getString(fila.get("observacion"), ""));
+                tp.setObservacionRevision(truncate(getString(fila.get("observacion"), getString(fila.get("observacionRevision"), "")), 255));
 
                 String refFinal = getString(referencia, null);
                 if (refFinal == null || refFinal.equals("S/R")) {
                     refFinal = getString(fila.get("referencia"), getString(fila.get("remision"), "S/R"));
                 }
-                tp.setReferencia(refFinal);
+                tp.setReferencia(truncate(refFinal, 255));
 
-                tp.setNombreArchivo(getString(nombreArchivo, "archivo_sin_nombre"));
+                tp.setNombreArchivo(truncate(getString(nombreArchivo, "archivo_sin_nombre"), 255));
                 tp.setEstadoRevision(0);
+                tp.setObservacionRechazo(null);
                 listaTemp.add(tp);
             }
             preCargaRepo.saveAll(listaTemp);
@@ -202,7 +241,7 @@ public class DocumentoController {
                         .body(Map.of("error", "No tienes permiso para aprobar cargas"));
             }
 
-            List<DocumentoPreCarga> pendientes = preCargaRepo.findByNombreArchivo(nombreArchivo);
+            List<DocumentoPreCarga> pendientes = preCargaRepo.findByNombreArchivoAndEstadoRevision(nombreArchivo, 0);
             if (pendientes.isEmpty()) return ResponseEntity.notFound().build();
 
             Integer idArc = pendientes.get(0).getIdArchivador();
@@ -235,7 +274,11 @@ public class DocumentoController {
                 oficiales.add(d);
             }
             repository.saveAll(oficiales);
-            preCargaRepo.deleteAll(pendientes);
+            for (DocumentoPreCarga p : pendientes) {
+                p.setEstadoRevision(1);
+                p.setObservacionRechazo(null);
+            }
+            preCargaRepo.saveAll(pendientes);
 
             return ResponseEntity.ok(Map.of("mensaje", "Archivo '" + nombreArchivo + "' aprobado", "total", oficiales.size()));
         } catch (Exception e) {
@@ -313,7 +356,11 @@ public class DocumentoController {
                         oficiales.add(d);
                     }
                     repository.saveAll(oficiales);
-                    preCargaRepo.deleteAll(listaAprobados);
+                    for (DocumentoPreCarga p : listaAprobados) {
+                        p.setEstadoRevision(1);
+                        p.setObservacionRechazo(null);
+                    }
+                    preCargaRepo.saveAll(listaAprobados);
                 }
             }
 
@@ -334,12 +381,102 @@ public class DocumentoController {
         }
     }
 
+    @PostMapping("/reenviar-revision")
+    @Transactional
+    public ResponseEntity<?> reenviarRevision(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        try {
+            Map<String, Object> cabecera = body.containsKey("cabecera") && body.get("cabecera") instanceof Map
+                    ? (Map<String, Object>) body.get("cabecera")
+                    : body;
+
+            Integer idArchivador = convertToInt(cabecera.get("idArchivador"));
+            Integer idUsuario = convertToInt(cabecera.get("idUsuario"));
+            String nombreArchivo = getString(cabecera.get("nombreArchivo"), null);
+            String referencia = getString(cabecera.get("referencia"), null);
+            String dependencia = getString(cabecera.get("dependencia"), null);
+
+            Object detallesObj = body.get("detalles");
+            if (detallesObj == null) {
+                detallesObj = body.get("detalle");
+            }
+            List<Map<String, Object>> detalles = (List<Map<String, Object>>) detallesObj;
+
+            if (idArchivador == 0 || idUsuario == 0 || nombreArchivo == null || detalles == null || detalles.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Faltan datos obligatorios para el reenvio"));
+            }
+
+            if (!puedeAccederArchivador(idArchivador, request)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "No tienes permiso para cargar en este archivador"));
+            }
+
+            if (!esPrivilegiado(request)) {
+                Integer idUsuarioToken = obtenerIdUsuarioToken(request);
+                if (idUsuarioToken == null || !idUsuarioToken.equals(idUsuario)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                            .body(Map.of("error", "No puedes reenviar como otro usuario"));
+                }
+            }
+
+            // Limpia rechazos previos del mismo archivo/usuario para evitar duplicados
+            preCargaRepo.deleteByNombreArchivoAndIdUsuarioAndEstadoRevision(nombreArchivo, idUsuario, 2);
+
+            DocumentoExterno historial = new DocumentoExterno();
+            historial.setIdUsuario(idUsuario);
+            historial.setNombreArchivo(getString(nombreArchivo, "archivo_sin_nombre"));
+            historial.setFechaCarga(java.time.LocalDateTime.now());
+            historial.setEstado(true);
+            historial.setFormato("EXCEL");
+            historial.setRutaArchivo("REENVIO_REVISION");
+            externoRepository.save(historial);
+
+            List<DocumentoPreCarga> listaTemp = new ArrayList<>();
+            for (Map<String, Object> fila : detalles) {
+                DocumentoPreCarga tp = new DocumentoPreCarga();
+                tp.setIdArchivador(idArchivador);
+                tp.setIdUsuario(idUsuario);
+                tp.setAsunto(truncate(getString(fila.get("asunto"), "Sin Asunto"), 255));
+                tp.setCodigoDocumento(truncate(getString(fila.get("codigoDocumento"), "S/N"), 255));
+                tp.setTipoDocumentoTexto(truncate(getString(fila.get("tipoDocumento"), "OTROS"), 255));
+                tp.setDependenciaTexto(truncate(getString(dependencia, "OFICINA DESCONOCIDA"), 255));
+                tp.setFechaTexto(truncate(getString(fila.get("fecha"), ""), 255));
+                tp.setFolios(convertToInt(fila.get("folios")));
+                tp.setObservacionRevision(truncate(getString(fila.get("observacion"), getString(fila.get("observacionRevision"), "")), 255));
+
+                String refFinal = getString(referencia, null);
+                if (refFinal == null || refFinal.equals("S/R")) {
+                    refFinal = getString(fila.get("referencia"), getString(fila.get("remision"), "S/R"));
+                }
+                tp.setReferencia(truncate(refFinal, 255));
+
+                tp.setNombreArchivo(truncate(getString(nombreArchivo, "archivo_sin_nombre"), 255));
+                tp.setEstadoRevision(0);
+                tp.setObservacionRechazo(null);
+                listaTemp.add(tp);
+            }
+            preCargaRepo.saveAll(listaTemp);
+
+            Map<String, Object> respuesta = new java.util.HashMap<>();
+            respuesta.put("idDocumentoExterno", historial.getId());
+            respuesta.put("nombreArchivo", nombreArchivo);
+            respuesta.put("estado", "PENDIENTE");
+            respuesta.put("totalFilas", listaTemp.size());
+            respuesta.put("fechaCarga", historial.getFechaCarga());
+            respuesta.put("idUsuario", idUsuario);
+            respuesta.put("idArchivador", idArchivador);
+            return ResponseEntity.ok(respuesta);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Error reenviando: " + e.getMessage()));
+        }
+    }
+
     // =========================================================================
     // 2. RUTAS CON VARIABLES ESPECÍFICAS
     // =========================================================================
 
     @GetMapping("/archivador/{idArchivador}")
     public ResponseEntity<?> listarPorArchivador(@PathVariable Integer idArchivador, HttpServletRequest request) {
+        System.out.println("Docuemntos controller 479: "+ idArchivador + "-"+puedeAccederArchivador(idArchivador, request));
         if (!puedeAccederArchivador(idArchivador, request)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "No tienes permiso para ver este archivador"));
@@ -355,14 +492,14 @@ public class DocumentoController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "No se pudo identificar al usuario"));
             }
-            List<DocumentoPreCarga> detalleUsuario = preCargaRepo.findByNombreArchivoAndIdUsuario(nombreArchivo, idUsuarioToken);
+            List<DocumentoPreCarga> detalleUsuario = preCargaRepo.findByNombreArchivoAndIdUsuarioAndEstadoRevision(nombreArchivo, idUsuarioToken, 0);
             if (detalleUsuario.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "No tienes permiso para ver este detalle"));
             }
             return ResponseEntity.ok(detalleUsuario);
         }
-        List<DocumentoPreCarga> detalle = preCargaRepo.findByNombreArchivo(nombreArchivo);
+        List<DocumentoPreCarga> detalle = preCargaRepo.findByNombreArchivoAndEstadoRevision(nombreArchivo, 0);
         if (detalle.isEmpty()) return ResponseEntity.status(404).body(Map.of("error", "No encontrado"));
         return ResponseEntity.ok(detalle);
     }
@@ -513,11 +650,23 @@ public class DocumentoController {
                         .findTopByNombreArchivoOrderByFechaCargaDesc(c.getNombreArchivo())
                         .orElse(null);
 
+                String archivadorCodigo = "";
+                String archivadorAnio = "";
+                if (c.getIdArchivador() != null) {
+                    Archivador arc = archivadorRepository.findById(c.getIdArchivador()).orElse(null);
+                    if (arc != null) {
+                        archivadorCodigo = arc.getNumero() != null ? arc.getNumero().toString() : "";
+                        archivadorAnio = arc.getAnio() != null ? arc.getAnio() : "";
+                    }
+                }
+
                 Map<String, Object> m = new java.util.HashMap<>();
                 m.put("id", c.getId());
-                m.put("nroOrden", c.getId()); // identificador estable mientras no exista un nroOrden real en pre-carga
+                m.put("nroOrden", c.getId());
                 m.put("identificadorOrden", c.getId());
                 m.put("idArchivador", c.getIdArchivador());
+                m.put("archivadorCodigo", archivadorCodigo);
+                m.put("archivadorAnio", archivadorAnio);
                 m.put("idUsuario", c.getIdUsuario());
                 m.put("nombreArchivo", c.getNombreArchivo() != null ? c.getNombreArchivo() : "Sin nombre");
                 m.put("codigoDocumento", c.getCodigoDocumento() != null ? c.getCodigoDocumento() : "S/N");
@@ -527,7 +676,7 @@ public class DocumentoController {
                 m.put("referencia", c.getReferencia() != null ? c.getReferencia() : "");
                 m.put("remision", c.getReferencia() != null ? c.getReferencia() : "");
                 m.put("folios", c.getFolios() != null ? c.getFolios() : 0);
-                m.put("estado", c.getEstadoRevision() == 0 ? "PENDIENTE" : (c.getEstadoRevision() == 2 ? "RECHAZADO" : "DESCONOCIDO"));
+                m.put("estado", c.getEstadoRevision() == 0 ? "PENDIENTE" : (c.getEstadoRevision() == 1 ? "APROBADO" : (c.getEstadoRevision() == 2 ? "RECHAZADO" : "DESCONOCIDO")));
                 m.put("estadoNumero", c.getEstadoRevision());
                 m.put("observacionRevision", c.getObservacionRevision() != null ? c.getObservacionRevision() : "");
                 m.put("observacionRechazo", c.getObservacionRechazo() != null ? c.getObservacionRechazo() : "");
@@ -544,6 +693,60 @@ public class DocumentoController {
             return ResponseEntity.internalServerError()
                     .body(Map.of("error", "Error al obtener cargas: " + e.getMessage()));
         }
+    }
+
+    @GetMapping("/cargas-revisadas")
+    public ResponseEntity<?> listarCargasRevisadas(HttpServletRequest request) {
+        if (!esPrivilegiado(request)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "No tienes permiso para ver cargas revisadas"));
+        }
+
+        List<Object[]> filas = preCargaRepo.listarCargasRevisadas();
+        List<Map<String, Object>> respuesta = new ArrayList<>();
+
+        for (Object[] row : filas) {
+            Map<String, Object> item = new java.util.HashMap<>();
+            String nombreArchivo = row[0] != null ? row[0].toString() : "";
+            Integer total = row[1] != null ? ((Number) row[1]).intValue() : 0;
+            String referencia = row[2] != null ? row[2].toString() : "";
+            String fechaCarga = row[3] != null ? row[3].toString() : "";
+            String dependencia = row[4] != null ? row[4].toString() : "";
+            String codigo = row[5] != null ? row[5].toString() : "";
+            String tipo = row[6] != null ? row[6].toString() : "";
+            String observacion = row[7] != null ? row[7].toString() : "";
+            String observacionRechazo = row[8] != null ? row[8].toString() : "";
+            Integer estadoRevision = row[9] != null ? ((Number) row[9]).intValue() : null;
+            Integer idArchivador = row[10] != null ? ((Number) row[10]).intValue() : null;
+
+            String archivadorCodigo = "";
+            String archivadorAnio = "";
+            if (idArchivador != null) {
+                Archivador arc = archivadorRepository.findById(idArchivador).orElse(null);
+                if (arc != null) {
+                    archivadorCodigo = arc.getNumero() != null ? arc.getNumero().toString() : "";
+                    archivadorAnio = arc.getAnio() != null ? arc.getAnio() : "";
+                }
+            }
+
+            item.put("nombreArchivo", nombreArchivo);
+            item.put("totalDocumentos", total);
+            item.put("referencia", referencia);
+            item.put("fechaCarga", fechaCarga);
+            item.put("dependencia", dependencia);
+            item.put("codigo", codigo);
+            item.put("tipo", tipo);
+            item.put("observacion", observacion);
+            item.put("observacionRechazo", observacionRechazo);
+            item.put("estadoRevision", estadoRevision);
+            item.put("estado", estadoRevision != null && estadoRevision == 1 ? "APROBADO" : "RECHAZADO");
+            item.put("idArchivador", idArchivador);
+            item.put("archivadorCodigo", archivadorCodigo);
+            item.put("archivadorAnio", archivadorAnio);
+            respuesta.add(item);
+        }
+
+        return ResponseEntity.ok(respuesta);
     }
 
     // --- HELPERS ---
@@ -642,5 +845,9 @@ public class DocumentoController {
         if (header == null || !header.startsWith("Bearer ")) return null;
         return header.substring(7);
     }
-}
 
+    private String truncate(String value, int maxLength) {
+        if (value == null) return null;
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+}

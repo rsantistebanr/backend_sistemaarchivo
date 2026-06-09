@@ -49,4 +49,15 @@ public class Archivador {
 
     @Column(name = "valda")
     private String valda;
+
+    @Column(name = "transferido")
+    private Integer transferido;
+
+    public Integer getNumero() {
+        return this.numero;
+    }
+
+    public String getAnio() {
+        return this.año;
+    }
 }

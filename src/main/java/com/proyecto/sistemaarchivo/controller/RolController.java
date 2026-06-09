@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/roles")
+@RequestMapping("/api/roles")
 @CrossOrigin(origins = "*")
 public class RolController {
 

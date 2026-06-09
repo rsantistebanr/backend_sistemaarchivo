@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @RestController
-@RequestMapping("/archivadores")
+@RequestMapping("/api/archivadores")
 @CrossOrigin(origins = "*")
 public class ArchivadorController {
 
@@ -32,6 +32,7 @@ public class ArchivadorController {
     // 1. LISTAR TODOS
     @GetMapping
     public ResponseEntity<?> listar(HttpServletRequest request) {
+
         List<Map<String, Object>> resultados = repository.obtenerDetalleCompleto(null);
 
         if (esPrivilegiado(request)) {
@@ -39,7 +40,10 @@ public class ArchivadorController {
         }
 
         Integer idDependencia = obtenerDependenciaToken(request);
+        System.out.println("idDependencia  " + idDependencia);
+
         if (idDependencia == null) {
+            System.out.println("entro linea 46  " + idDependencia);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
         }
@@ -59,14 +63,21 @@ public class ArchivadorController {
             @RequestParam(required = false) Integer esValioso,
             HttpServletRequest request) {
 
+        System.out.println("ARCHIVADORES AUTH2: " + request.getHeader("Authorization"));
+        System.out.println("ARCHIVADORES ROL2: " + obtenerRolToken(request));
+        System.out.println("ARCHIVADORES ES PRIV2: " + esPrivilegiado(request));
+
         Integer idDependenciaFinal = idDependencia;
         if (!esPrivilegiado(request)) {
             Integer idDependenciaToken = obtenerDependenciaToken(request);
+            System.out.println("idDependencia  " + idDependenciaToken);
             if (idDependenciaToken == null) {
+                System.out.println("entro linea 75");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
             }
             if (idDependencia != null && !idDependencia.equals(idDependenciaToken)) {
+                System.out.println("entro linea 76");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body(Map.of("error", "No puedes consultar archivadores de otra dependencia"));
             }

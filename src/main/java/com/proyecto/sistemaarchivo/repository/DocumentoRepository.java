@@ -14,7 +14,7 @@ import java.util.Map;
 public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
 
     @Query(value = "SELECT d.*, td.nombre as nombre_tipo, dep.Nombre as nombre_dependencia " +
-            "FROM documento d " +
+            "FROM Documento d " +
             "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " +
             "LEFT JOIN dependencia dep ON d.IdDependencia = dep.id " +
             "WHERE (:criterio IS NULL " +
@@ -40,11 +40,11 @@ public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
     Integer obtenerUltimoNroOrden(@Param("idArc") Integer idArc);
 
     // Busca el ID basándose en el nombre del tipo (ej: 'INFORME')
-    @Query(value = "SELECT Id FROM TipoDocumento WHERE UPPER(nombre) = :nombre LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT Id FROM tipodocumento WHERE UPPER(nombre) = :nombre LIMIT 1", nativeQuery = true)
     Integer buscarIdTipoPorNombre(@Param("nombre") String nombre);
 
     // Busca el ID basándose en el nombre de la dependencia
-    @Query(value = "SELECT id FROM Dependencia WHERE UPPER(Nombre) = :nombre LIMIT 1", nativeQuery = true)
+    @Query(value = "SELECT id FROM dependencia WHERE UPPER(Nombre) = :nombre LIMIT 1", nativeQuery = true)
     Integer buscarIdDependenciaPorNombre(@Param("nombre") String nombre);
 
     @Query("SELECT COALESCE(SUM(d.Numero_Folio), 0) FROM Documento d WHERE d.idArchivador = :idArc")
@@ -63,7 +63,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Integer> {
             "d.observacionRevision as observacion, " +
             "td.nombre AS tipoDocumento, " +
             "dep.Nombre AS dependencia " +
-            "FROM documento d " +
+            "FROM Documento d " +
             "LEFT JOIN tipodocumento td ON d.IdTipoDocumento = td.Id " +
             "LEFT JOIN dependencia dep ON d.IdDependencia = dep.id " +
             "WHERE d.IdArchivador = :idArc " +

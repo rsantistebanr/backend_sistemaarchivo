@@ -1,6 +1,7 @@
 package com.proyecto.sistemaarchivo.security;
 
 import com.proyecto.sistemaarchivo.JWT.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +38,13 @@ public class SecurityConfig {
 
                 // Configuración CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            System.out.println("403 EN: " + request.getRequestURI());
+                            System.out.println("MOTIVO: " + accessDeniedException.getMessage());
+                            response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                        })
+                )
                 // Configuración de permisos
                 .authorizeHttpRequests(auth -> auth
 
@@ -46,49 +53,69 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/registrar").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/publica").permitAll()
+                        .requestMatchers("/api/archivadores", "/api/archivadores/**").permitAll()
 
                         //RUTAS GET
-                        .requestMatchers(HttpMethod.GET, "/dependencias", "/dependencias/*")
+                        /*.requestMatchers(HttpMethod.GET, "/api/dependencias", "/api/dependencias/*")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers(HttpMethod.GET, "/sucursales", "/sucursales/*")
+                        .requestMatchers(HttpMethod.GET, "/api/sucursales", "/api/sucursales/*")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers(HttpMethod.GET, "/tipoarchivadores", "/tipoarchivadores/*")
+                        .requestMatchers(HttpMethod.GET, "/api/tipoarchivadores", "/api/tipoarchivadores/*")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers(HttpMethod.GET, "/tipodocumento" , "/tipodocumento/*")
+                        .requestMatchers(HttpMethod.GET, "/api/tipodocumento" , "/api/tipodocumento/*")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers(HttpMethod.GET, "/usuarios" , "/usuarios/*")
+                        .requestMatchers(HttpMethod.GET, "/api/usuarios" , "/api/usuarios/*")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")*/
+
+                        .requestMatchers(HttpMethod.GET, "/api/dependencias", "/api/dependencias/**")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/sucursales", "/api/sucursales/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/tipodependencias", "/api/tipodependencias/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/tipoarchivadores", "/api/tipoarchivadores/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/tipodocumento", "/api/tipodocumento/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/usuarios", "/api/usuarios/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
+                        .requestMatchers(HttpMethod.GET, "/api/archivadores", "/api/archivadores/**")
+                        .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+
 
                         // RUTAS POST, PUT, ETC
-                        .requestMatchers("/usuarios/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/roles/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/sucursales/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
-                        .requestMatchers("/dependencias/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/tipodependencias/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/estantes/**").hasRole("ADMINISTRADOR")
-                        .requestMatchers("/tipoarchivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
-                        .requestMatchers("/tipodocumento/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/roles/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/sucursales/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/dependencias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/tipodependencias/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/estantes/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
+                        .requestMatchers("/api/tipoarchivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
+                        .requestMatchers("/api/tipodocumento/**").hasAnyRole("ADMINISTRADOR", "USUARIOA")
 
-                        // Modulos operativos (Administrador + Archivo Central + Oficina)
-                        .requestMatchers("/archivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers("/cajas/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers("/documentos/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers("/transferencias/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
-                        .requestMatchers("/detalletransferencia/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        // Modulos (Administrador + Archivo Central + Oficina)
+                        .requestMatchers("/api/archivadores/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/api/cajas/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/api/documentos/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/api/transferencias/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
+                        .requestMatchers("/api/detalletransferencia/**").hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
                         // Se soportan ambas rutas para compatibilidad
-                        .requestMatchers("/documento-externo/**", "/documentoexterno/**")
+                        .requestMatchers("/api/documento-externo/**", "/api/documentoexterno/**")
                         .hasAnyRole("ADMINISTRADOR", "USUARIOA", "USUARIO")
 
-                        // Cualquier otra petición requiere autenticación
                         .anyRequest().authenticated()
                 )
 
-                // No usar sesiones (JWT es stateless)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
-
-        // Filtro JWT antes del filtro de autenticación
+        
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

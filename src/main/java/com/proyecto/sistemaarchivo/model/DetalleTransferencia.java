@@ -9,9 +9,39 @@ import lombok.Data;
 public class DetalleTransferencia {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer Id;
+    @Column(name = "Id")
+    private Integer id;
 
-    private Integer IdTransferencia;
-    private Integer IdArchivador;
-    private Integer IdDocumentoExterno;
+    @Column(name = "IdTransferencia")
+    private Integer idTransferencia;
+
+    @Column(name = "IdArchivador")
+    private Integer idArchivador;
+
+    @Column(name = "IdDocumentoExterno")
+    private Integer idDocumentoExterno;
+
+    @Column(name = "SerieDocumental")
+    private String serieDocumental;
+
+    @Column(name = "FechaDm")
+    private String fechaDm;
+
+    @Column(name = "FechaA")
+    private String fechaA;
+
+    @Column(name = "CantidadFolios")
+    private Integer cantidadFolios;
+
+    @Column(name = "NumeroEstante")
+    private Integer numeroEstante;
+
+    @Column(name = "NumeroCuerpo")
+    private Integer numeroCuerpo;
+
+    @Column(name = "NivelBalda")
+    private String nivelBalda;
+
+    @Column(name = "Observaciones")
+    private String observaciones;
 }

@@ -37,7 +37,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String header = request.getHeader("Authorization");
-
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
 
@@ -63,18 +62,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     }
 
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + rolToken);
-
                     UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                             userDetails, null, Collections.singletonList(authority));
-
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 }
             }
         }
+
         filterChain.doFilter(request, response);
     }
 }

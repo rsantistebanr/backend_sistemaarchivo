@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/sucursales")
+@RequestMapping("/api/sucursales")
 @CrossOrigin(origins = "*")
 public class SucursalController {
 

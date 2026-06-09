@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/documento-externo")
+@RequestMapping("/api/documento-externo")
 @CrossOrigin(origins = "*")
 public class DocumentoExternoController {
 

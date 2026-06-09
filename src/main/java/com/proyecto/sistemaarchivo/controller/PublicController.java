@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/publica")
+@RequestMapping("/api/publica")
 @CrossOrigin(origins = "*")
 public class PublicController {
     @GetMapping

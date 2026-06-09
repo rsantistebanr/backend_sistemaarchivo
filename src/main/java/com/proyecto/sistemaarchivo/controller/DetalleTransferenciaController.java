@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/detalletransferencia")
+@RequestMapping("/api/detalletransferencia")
 @CrossOrigin(origins = "*")
 public class DetalleTransferenciaController {
 
@@ -38,6 +38,7 @@ public class DetalleTransferenciaController {
         }
 
         Integer idDepToken = obtenerDependenciaToken(request);
+        System.out.println("La dependencia es: "+idDepToken);
         if (idDepToken == null) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("error", "No se pudo determinar la dependencia del usuario"));
@@ -71,6 +72,10 @@ public class DetalleTransferenciaController {
 
     private boolean esPrivilegiado(HttpServletRequest request) {
         String rol = obtenerRolToken(request);
+        System.out.println("ROL DETALLE: " + obtenerRolToken(request));
+        System.out.println("ID DEP TOKEN DETALLE: " + obtenerDependenciaToken(request));
+        System.out.println("AUTH HEADER DETALLE: " + request.getHeader("Authorization"));
+
         return "ADMINISTRADOR".equalsIgnoreCase(rol) || "USUARIOA".equalsIgnoreCase(rol);
     }
 

@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/dependencias")
+@RequestMapping("/api/dependencias")
 @CrossOrigin(origins = "*")
 public class DependenciaController {
 

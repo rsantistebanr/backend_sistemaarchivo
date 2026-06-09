@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/historial-revision")
+@RequestMapping("/api/historial-revision")
 @CrossOrigin(origins = "*")
 public class HistorialRevisionController {
 
