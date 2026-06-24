@@ -37,12 +37,13 @@ public class UsuarioController {
     @Transactional
     public ResponseEntity<?> crearUsuario(@RequestBody Usuario nuevoUsuario) {
         try {
+
             if (usuarioRepository.existsByUsuario(nuevoUsuario.getUsuario())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "El nombre de usuario ya está en uso."));
+                return ResponseEntity.badRequest().body(Map.of("message", "El nombre de usuario ya está en uso."));
             }
 
             if (nuevoUsuario.getPassword() == null || !validarPassword(nuevoUsuario.getPassword())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "La contraseña no cumple con los requisitos mínimos."));
+                return ResponseEntity.badRequest().body(Map.of("message", "La contraseña no cumple con los requisitos mínimos."));
             }
 
             Integer rolNuevo = (nuevoUsuario.getIdRol() != null) ? nuevoUsuario.getIdRol() : 3;

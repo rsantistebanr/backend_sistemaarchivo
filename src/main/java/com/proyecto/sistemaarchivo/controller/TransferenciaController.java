@@ -1,10 +1,13 @@
 package com.proyecto.sistemaarchivo.controller;
 
 import com.proyecto.sistemaarchivo.JWT.JwtUtils;
+import com.proyecto.sistemaarchivo.dto.TransferenciaDTO;
 import com.proyecto.sistemaarchivo.model.*;
 import com.proyecto.sistemaarchivo.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -278,10 +281,11 @@ public class TransferenciaController {
                     det.put("observaciones", d.getObservaciones());
                     det.put("idDocumentoExterno", d.getIdDocumentoExterno());
                     pendientes.add(det);
-                }
+            }
             }
 
             if (!pendientes.isEmpty()) {
+                System.out.println("linea 285 tranfereancia controller");
                 String usuarioEnvioNombre = usuarioRepository.findById(t.getIdUsuarioEnvio())
                         .map(Usuario::getNombre)
                         .orElse(null);
@@ -311,6 +315,28 @@ public class TransferenciaController {
         }
 
         return ResponseEntity.ok(respuesta);
+    }
+
+    @GetMapping
+    public ResponseEntity<?> listarTransferencias(
+            @RequestParam(required = false) Integer estado,
+            Pageable pageable) {
+
+        try {
+
+            Page<TransferenciaDTO> page = transRepo.findByEstado(estado, pageable);
+
+            return ResponseEntity.ok(Map.of(
+                    "content", page.getContent(),
+                    "totalElements", page.getTotalElements(),
+                    "totalPages", page.getTotalPages(),
+                    "page", page.getNumber()
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 
     private Integer convertToInt(Object obj) {

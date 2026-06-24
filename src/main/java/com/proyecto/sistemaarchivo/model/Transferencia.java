@@ -8,15 +8,22 @@ import java.time.LocalDateTime;
 @Table(name = "tranferencia")
 @Data
 public class Transferencia {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer Id;
+    private Integer id;
 
-    private Integer IdUsuarioEnvio;
-    private Integer IdDependenciaDestino;
+    private Integer idUsuarioEnvio;
+
+    private Integer idDependenciaDestino;
+
     private LocalDateTime fechaTransferencia;
+
     private String observacion;
-    private Integer IdUsuarioRecepcion;
-    private Double MetrosLineales;
-    private Integer CantidadArchivadores;
+
+    private Integer idUsuarioRecepcion;
+
+    private Double metrosLineales;
+
+    private Integer cantidadArchivadores;
 }
